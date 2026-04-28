@@ -1,8 +1,11 @@
 # 🚀 ParsiKit
 **جعبه‌ابزار جادویی و بی‌دردسر برای مدیریت متن‌ها، اعداد و پول فارسی در پایتون!**
 
-[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![Author](https://img.shields.io/badge/author-Ali%20Kamrani-purple.svg)](https://github.com/MRThugh)
+[![Persian](https://img.shields.io/badge/lang-PERSIAN-green)](README-fa.md)
+[![English](https://img.shields.io/badge/lang-English-blue)](README.md)
 
 سلام! 👋 به **ParsiKit** (پارسی‌کیت) خوش اومدید. 
 اگر شما هم موقع برنامه‌نویسی با پایتون با مشکلاتی مثل «ي» و «ك» عربی، چسبیدن پیشوندها و پسوندها (مثل "می روم" به جای "می‌روم")، یا تبدیل اعداد انگلیسی به فارسی و فرمت کردن قیمت‌ها (ریال/تومان) درگیر هستید، پارسی‌کیت دقیقاً همون چیزیه که بهش نیاز دارید!
