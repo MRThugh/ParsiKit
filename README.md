@@ -6,6 +6,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Author](https://img.shields.io/badge/author-Ali%20Kamrani-purple.svg)](https://github.com/MRThugh)
 [![Persian](https://img.shields.io/badge/lang-PERSIAN-green)](README-fa.md)
+[![English](https://img.shields.io/badge/lang-English-blue)](README.md)
 
 **A pure, high-performance Python library for Persian data formatting, text normalization, and currency conversion.**
 
