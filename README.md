@@ -1,6 +1,12 @@
 <div align="center">
 
 # 🌟 ParsiKit Library 🌟
+<p align="center">
+  <img 
+    src="https://raw.githubusercontent.com/MRThugh/MRThugh/main/badge.svg"
+    width="50%" 
+  />
+</p>
 
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
