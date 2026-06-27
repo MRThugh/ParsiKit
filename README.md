@@ -14,7 +14,7 @@
 [![Persian](https://img.shields.io/badge/lang-PERSIAN-green)](README-fa.md)
 [![English](https://img.shields.io/badge/lang-English-blue)](README.md)
 
-**A pure, high-performance Python library for Persian data formatting, text normalization, and currency conversion.**
+**A comprehensive, pure Python library for Persian text processing, validation, financial calculations, and graphical text reshaping.**
 
 </div>
 
@@ -22,102 +22,160 @@
 
 ## 📖 Overview
 
-**ParsiKit AstraNest Explorer** (imported as `parsikit`) is a lightweight, dependency-free toolkit designed to handle the nuances of the Persian language in software development. Whether you need to normalize Arabic characters to Persian, correct zero-width non-joiners (نیم‌فاصله), convert digits, or format monetary values (Rial/Toman), ParsiKit handles it with $O(n)$ performance using optimized translation tables.
+**ParsiKit** (imported as `parsikit`) is a lightweight, zero-dependency, high-performance Python library designed to solve real-world Persian language challenges in software development.
+
+Whether you need to normalize text, validate Iranian national IDs and bank accounts, convert numbers to words, calculate loan installments, or properly render Persian text in graphics engines (Pillow, Pygame, etc.), ParsiKit provides clean, fast, and reliable solutions using optimized translation tables and standard algorithms.
+
+**Version:** 2.1.0
 
 ---
 
 ## ✨ Features
 
-- ✍️ **Text Normalization:** Converts Arabic characters (ي, ك, etc.) to their Persian equivalents (ی, ک).
-- 🧩 **Smart ZWNJ (نیم‌فاصله) Correction:** Automatically fixes spacing for common Persian prefixes (می, نمی) and suffixes (ها, های).
-- 🔢 **Digit Conversion:** Seamlessly translate between English (ASCII), Persian, and Arabic-Indic digits.
-- 💰 **Currency Formatting:** Format large numbers into human-readable currency strings (Toman/Rial).
-- 🧮 **Currency Conversion:** Safely convert Iranian Rials to Tomans using integer division ($T = \lfloor \frac{R}{10} \rfloor$).
+- **✍️ Text Normalization**
+  - Arabic to Persian character conversion (ي → ی, ك → ک, etc.)
+  - Smart Zero-Width Non-Joiner (نیم‌فاصله) correction
+  - Diacritics (حرکات) removal
+  - English keyboard layout correction (e.g. `sghl` → `سلام`)
+
+- **🔢 Number Utilities**
+  - Digit conversion (English ↔ Persian ↔ Arabic-Indic)
+  - Number to Persian words (up to quadrillions)
+
+- **💰 Currency & Financial Tools**
+  - Currency formatting with thousands separators
+  - Rial ↔ Toman conversion
+  - Convert amount to Persian words
+  - VAT / Tax calculation
+  - Loan monthly installment calculation (PMT)
+
+- **🔐 Iranian Standards Validators**
+  - National Code (کد ملی) validation + formatting
+  - Mobile number validation + normalization
+  - Bank Card validation (Luhn algorithm)
+  - Sheba (IBAN) validation + formatting
+
+- **🎨 Graphical Reshaping**
+  - Persian text shaping for engines with weak RTL support
+  - Proper letter connection and Lam-Alef ligatures
+  - Bidirectional (RTL/LTR) block handling
+
+All operations are optimized for **O(n)** performance.
 
 ---
 
 ## ⚙️ Installation
 
-Since this is a standard Python package, you can install it directly via `pip` from the source directory. ParsiKit requires **Python 3.10+**.
-
 ```bash
-# Clone the repository
 git clone https://github.com/MRThugh/ParsiKit.git
-
-# Navigate to the project directory
 cd ParsiKit
-
-# Install the package
 pip install .
 ```
+**Or**
+
+```bash
+pip install parsikit
+```
+
+**Requires Python 3.10+**
 
 ---
 
 ## 🚀 Quick Start & Usage
 
-### 1. Text Normalization (`parsikit.text`)
-Clean up user input by fixing Arabic characters, applying ZWNJs correctly, and removing redundant whitespaces.
+### 1. Text Normalization
 
 ```python
-from parsikit import standardize_persian
+from parsikit import standardize_persian, strip_diacritics, correct_keyboard_layout
 
-# Arabic characters and bad spacing
-raw_text = "ي كتاب   مي خوانم"
-clean_text = standardize_persian(raw_text)
+text = "ي كافيه ك کتاب ها ميباشد سَلامٌ"
+print(standardize_persian(text))
+# Output: "ی کافیه ک کتاب‌ها میباشد سلام"
 
-print(clean_text) 
-# Output: 'ی کتاب می‌خوانم'
+print(strip_diacritics("عَلِیّ"))
+# Output: "علی"
+
+print(correct_keyboard_layout("sghl dm"))
+# Output: "سلام خوب"
 ```
 
-### 2. Number Conversion (`parsikit.number`)
-Convert numeric strings between English and Persian scripts safely. Excellent for sanitizing database inputs or preparing data for UI display.
+### 2. Number & Words Conversion
 
 ```python
-from parsikit import english_to_persian, persian_to_english
+from parsikit import english_to_persian, persian_to_english, number_to_words
 
-# English/Arabic to Persian
-print(english_to_persian("Order 123 - ١٢٣")) 
-# Output: 'Order ۱۲۳ - ۱۲۳'
+print(english_to_persian("Price: 12500"))
+# Output: "Price: ۱۲۵۰۰"
 
-# Persian/Arabic to English (ASCII)
-print(persian_to_english("قیمت: ۱۲۳۴")) 
-# Output: 'قیمت: 1234'
+print(number_to_words(1453200))
+# Output: "یک میلیون و چهارصد و پنجاه و سه هزار و دویست"
+
+print(number_to_words(-500))
+# Output: "منفی پانصد"
 ```
 
-### 3. Currency Handling (`parsikit.currency`)
-Format raw integers or Persian string numbers into beautifully formatted monetary values. Convert Rial to Toman mathematically ($Toman = Rial \div 10$).
+### 3. Currency & Financial
 
 ```python
-from parsikit import format_currency, rial_to_toman
+from parsikit import format_currency, format_currency_to_words, rial_to_toman, add_tax_and_toll, calculate_installments
 
-# Basic Toman formatting
-print(format_currency(1500000))
-# Output: '1,500,000 تومان'
+print(format_currency(1500000, persian_digits=True))
+# Output: "۱،۵۰۰،۰۰۰ تومان"
 
-# Persian digits output
-print(format_currency("۱۵۰۰۰۰", persian_digits=True))
-# Output: '۱۵۰،۰۰۰ تومان'
+print(format_currency_to_words(1000000))
+# Output: "یک میلیون تومان"
 
-# Rial to Toman conversion
-rial_amount = 5000000
-toman_amount = rial_to_toman(rial_amount)
-print(format_currency(toman_amount, "toman", persian_digits=True))
-# Output: '۵۰۰،۰۰۰ تومان'
+print(add_tax_and_toll(100000))                    # 10% VAT
+# Output: 110000
+
+# Loan installment example
+print(calculate_installments(10000000, 18.0, 12))
+# Output: 916799
+```
+
+### 4. Validators
+
+```python
+from parsikit import (
+    is_valid_national_code, format_national_code,
+    is_valid_mobile, normalize_mobile,
+    is_valid_card_number, format_card_number,
+    is_valid_sheba, format_sheba
+)
+
+print(is_valid_national_code("7730123452"))        # True
+print(format_national_code("7730123452"))
+# Output: "773-012345-2"
+
+print(is_valid_mobile("+989123456789"))            # True
+print(normalize_mobile("+989123456789", prefix="0"))
+# Output: "09123456789"
+
+print(is_valid_card_number("6037991122334455"))    # True
+print(format_card_number("6037991122334455"))
+# Output: "6037-9911-2233-4455"
+
+print(is_valid_sheba("IR050170000000123456789012")) # True
+```
+
+### 5. Graphical Text Reshaping
+
+```python
+from parsikit import reshape_for_graphics
+
+# For use in Pillow, Pygame, Matplotlib, etc.
+print(reshape_for_graphics("سلام Hello جهان"))
+# Output: something like "ﻡﻼﺳ Hello ﻥﺎﻬﺟ"
 ```
 
 ---
 
 ## 🧪 Running Tests
 
-The library comes with a comprehensive test suite to ensure reliability across all modules.
-
-You can run the tests using `unittest`:
 ```bash
-python -m unittest discover -s tests
-```
-Or using `pytest`:
-```bash
-python -m pytest test.py
+python -m unittest test.py
+# or
+python test.py
 ```
 
 ---
@@ -125,9 +183,16 @@ python -m pytest test.py
 ## 👨‍💻 Author
 
 **Ali Kamrani**
+
 - GitHub: [@MRThugh](https://github.com/MRThugh)
 - Email: kamrani.exe@gmail.com
 
+---
+
 ## 📄 License
 
-This project is licensed under the **MIT License**. Feel free to use, modify, and distribute it in your own projects.
+This project is licensed under the **MIT License**. Feel free to use, modify, and distribute it in your projects.
+
+---
+
+**ParsiKit** — Making Persian software development cleaner and more professional. 🚀
