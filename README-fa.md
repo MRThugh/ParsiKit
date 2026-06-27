@@ -1,125 +1,184 @@
-# 🚀 ParsiKit
-**جعبه‌ابزار جادویی و بی‌دردسر برای مدیریت متن‌ها، اعداد و پول فارسی در پایتون!**
+<div align="center" dir="rtl">
+
+# 🌟 کتابخانه ParsiKit 🌟
+<p align="center">
+  <img 
+    src="https://raw.githubusercontent.com/MRThugh/MRThugh/main/badge.svg"
+    width="50%" 
+  />
+</p>
 
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Author](https://img.shields.io/badge/author-Ali%20Kamrani-purple.svg)](https://github.com/MRThugh)
-[![Persian](https://img.shields.io/badge/lang-PERSIAN-green)](README-fa.md)
-[![English](https://img.shields.io/badge/lang-English-blue)](README.md)
 
-سلام! 👋 به **ParsiKit** (پارسی‌کیت) خوش اومدید. 
-اگر شما هم موقع برنامه‌نویسی با پایتون با مشکلاتی مثل «ي» و «ك» عربی، چسبیدن پیشوندها و پسوندها (مثل "می روم" به جای "می‌روم")، یا تبدیل اعداد انگلیسی به فارسی و فرمت کردن قیمت‌ها (ریال/تومان) درگیر هستید، پارسی‌کیت دقیقاً همون چیزیه که بهش نیاز دارید!
+**یک کتابخانهٔ سبک، سریع و بدون وابستگی برای پردازش متن فارسی، اعتبارسنجی، محاسبات مالی و شکل‌دهی متن برای گرافیک.**
 
-این کتابخونه کاملاً با پایتون خالص (Pure Python) نوشته شده، به شدت سبکه و به لطف استفاده از `str.translate`، سرعت پردازش بسیار بالایی داره.
+</div>
 
 ---
 
-## ✨ امکانات خفن پارسی‌کیت
+## 📖 معرفی
 
-- 🛠 **استانداردسازی متن:** تبدیل حروف و اعداد عربی به فارسی، اصلاح خودکار نیم‌فاصله‌ها (برای پیشوندها و پسوندها) و حذف فاصله‌های اضافی.
-- 🔢 **تبدیل اعداد:** تبدیل یکپارچه‌ی اعداد انگلیسی و عربی به فارسی و برعکس (بسیار کاربردی برای ذخیره در دیتابیس).
-- 💰 **مدیریت پول و ارز:** فرمت کردن قیمت‌ها با جداکننده‌ی هزارگان، پشتیبانی از ریال و تومان، و تبدیل راحت ریال به تومان.
+**ParsiKit** (قابل ایمپورت به صورت `parsikit`) یک کتابخانهٔ خالص پایتون است که مشکلات رایج کار با زبان فارسی در توسعهٔ نرم‌افزار را حل می‌کند.
+
+چه نیاز به نرمال‌سازی متن، اعتبارسنجی کد ملی و شبا، تبدیل عدد به حروف، محاسبه قسط وام، یا نمایش صحیح متن فارسی در موتورهای گرافیکی (مانند Pillow، Pygame، Matplotlib و ...) داشته باشید، ParsiKit با عملکرد بالا و کد تمیز به شما کمک می‌کند.
+
+**نسخه:** ۲.۱.۰
 
 ---
 
-## 📦 نصب و راه‌اندازی
+## ✨ امکانات
 
-از اونجایی که این پکیج با `setup.py` کانفیگ شده، به راحتی می‌تونید اون رو تو محیط پروژه خودتون نصب کنید:
+- **✍️ نرمال‌سازی متن**
+  - تبدیل حروف عربی به فارسی (ي → ی، ك → ک و ...)
+  - اصلاح هوشمند نیم‌فاصله (ZWNJ)
+  - حذف حرکات (تشدید، فتحه، کسره و ...)
+  - اصلاح صفحه‌کلید انگلیسی به فارسی (مثلاً `sghl` → `سلام`)
+
+- **🔢 کار با اعداد**
+  - تبدیل اعداد انگلیسی، فارسی و عربی به یکدیگر
+  - تبدیل عدد به حروف فارسی (تا کوآدریلیون)
+
+- **💰 امور مالی و پولی**
+  - فرمت کردن اعداد با جداکننده هزارگان
+  - تبدیل ریال به تومان و بالعکس
+  - تبدیل مبلغ به حروف فارسی
+  - محاسبه مالیات بر ارزش افزوده (VAT)
+  - محاسبه قسط ماهانه وام
+
+- **🔐 اعتبارسنجی استانداردهای ایرانی**
+  - اعتبارسنجی و فرمت کد ملی
+  - اعتبارسنجی و نرمال‌سازی شماره موبایل
+  - اعتبارسنجی شماره کارت بانکی (الگوریتم Luhn)
+  - اعتبارسنجی و فرمت شبا (IBAN)
+
+- **🎨 شکل‌دهی متن برای گرافیک**
+  - اتصال صحیح حروف فارسی (Shaping)
+  - پشتیبانی از ligature لام و الف
+  - مدیریت بلوک‌های راست به چپ و چپ به راست
+
+همه عملیات با **عملکرد O(n)** و استفاده از جدول ترجمه بهینه انجام می‌شوند.
+
+---
+
+## ⚙️ نصب
+
+```bash
+git clone https://github.com/MRThugh/ParsiKit.git
+cd ParsiKit
+pip install .
+```
+**یا**
 
 ```bash
 pip install parsikit
 ```
-*(نکته: پایتون شما باید نسخه ۳.۱۰ یا بالاتر باشه)*
+**نیازمند:** Python 3.10 به بالا
 
 ---
 
-## 💻 آموزش استفاده (API ها)
+## 🚀 نحوه استفاده
 
-کتابخانه پارسی‌کیت از ۳ ماژول اصلی تشکیل شده. بیایید ببینیم چطور باید ازشون استفاده کنیم:
-
-### ۱. پردازش و تمیزکاری متن (`parsikit.text`)
-با تابع `standardize_persian` دیگه نگران حروف عربی و نیم‌فاصله‌های فراموش‌شده نباشید.
+### ۱. نرمال‌سازی متن
 
 ```python
-from parsikit import standardize_persian
+from parsikit import standardize_persian, strip_diacritics, correct_keyboard_layout
 
-# تبدیل حروف عربی و اعداد به فارسی
-print(standardize_persian("ي كتاب خوب با قيمت ١٢٣")) 
-# خروجی: 'ی کتاب خوب با قیمت ۱۲۳'
+text = "ي كافيه ك کتاب ها ميباشد سَلامٌ"
+print(standardize_persian(text))
+# خروجی: «ی کافیه ک کتاب‌ها میباشد سلام»
 
-# اصلاح خودکار نیم‌فاصله‌ها برای پیشوندها و پسوندها
-print(standardize_persian("می روم که کتاب ها را بیاورم")) 
-# خروجی: 'می‌روم که کتاب‌ها را بیاورم'
+print(strip_diacritics("عَلِیّ"))
+# خروجی: «علی»
 
-# حذف فاصله‌های اضافه
-print(standardize_persian("سلام   دنیا  ")) 
-# خروجی: 'سلام دنیا'
+print(correct_keyboard_layout("sghl dm"))
+# خروجی: «سلام خوب»
 ```
 
-### ۲. تبدیل اعداد (`parsikit.number`)
-کاربردهای زیادی داره، مخصوصاً وقتی کاربر فرم‌ها رو با کیبورد فارسی پر می‌کنه و شما باید اعداد رو انگلیسی تو دیتابیس ذخیره کنید، یا برعکس!
+### ۲. تبدیل اعداد و نوشتن به حروف
 
 ```python
-from parsikit import english_to_persian, persian_to_english
+from parsikit import english_to_persian, persian_to_english, number_to_words
 
-# انگلیسی/عربی به فارسی
-print(english_to_persian("Order 123 - ١٢٣"))
-# خروجی: 'Order ۱۲۳ - ۱۲۳'
+print(english_to_persian("Price: 12500"))
+# خروجی: «Price: ۱۲۵۰۰»
 
-# فارسی/عربی به انگلیسی (برای دیتابیس و محاسبات)
-print(persian_to_english("قیمت: ۱۲۳۴ و ٩٨٧"))
-# خروجی: 'قیمت: 1234 و 987'
+print(number_to_words(1453200))
+# خروجی: «یک میلیون و چهارصد و پنجاه و سه هزار و دویست»
 ```
 
-### ۳. مدیریت ارز و قیمت‌ها (`parsikit.currency`)
-نمایش قیمت‌ها به کاربر همیشه دغدغه‌ست. با این ماژول، قیمت‌ها رو خوشگل و خوانا به کاربر نشون بدید.
+### ۳. امور مالی
 
 ```python
-from parsikit import format_currency, rial_to_toman
+from parsikit import format_currency, format_currency_to_words, add_tax_and_toll, calculate_installments
 
-# فرمت کردن پول (پیش‌فرض: تومان)
-print(format_currency(1500000))
-# خروجی: '1,500,000 تومان'
+print(format_currency(1500000, persian_digits=True))
+# خروجی: «۱،۵۰۰،۰۰۰ تومان»
 
-# نمایش با اعداد فارسی
-print(format_currency("250000", persian_digits=True))
-# خروجی: '۲۵۰،۰۰۰ تومان'
+print(format_currency_to_words(1000000))
+# خروجی: «یک میلیون تومان»
 
-# پشتیبانی از ریال
-print(format_currency(1000000, currency="rial"))
-# خروجی: '1,000,000 ریال'
+print(add_tax_and_toll(100000))        # مالیات ۱۰٪
+# خروجی: 110000
 
-# تبدیل ریال به تومان (حذف یک صفر)
-toman_price = rial_to_toman(50000)
-print(toman_price)
-# خروجی: 5000
+# مثال محاسبه قسط وام
+print(calculate_installments(10000000, 18.0, 12))
+# خروجی: 916799
+```
+
+### ۴. اعتبارسنجی‌ها
+
+```python
+from parsikit import (
+    is_valid_national_code, format_national_code,
+    is_valid_mobile, normalize_mobile,
+    is_valid_card_number, format_card_number,
+    is_valid_sheba, format_sheba
+)
+
+print(is_valid_national_code("7730123452"))   # True
+print(format_national_code("7730123452"))
+# خروجی: «773-012345-2»
+
+print(is_valid_mobile("+989123456789"))       # True
+
+print(is_valid_card_number("6037991122334455")) # True
+```
+
+### ۵. شکل‌دهی متن برای گرافیک
+
+```python
+from parsikit import reshape_for_graphics
+
+text = reshape_for_graphics("سلام Hello جهان")
+print(text)
+# مناسب برای Pillow، Pygame و موتورهایی که پشتیبانی RTL ضعیفی دارند
 ```
 
 ---
 
 ## 🧪 اجرای تست‌ها
 
-ما برای تمام بخش‌های این کتابخونه تست‌های کامل (Unit Tests) نوشتیم تا خیالتون از بابت باگ راحت باشه. برای اجرای تست‌ها کافیه تو روت پروژه دستور زیر رو بزنید:
-
 ```bash
-python -m unittest test.py
-```
-یا اگر `pytest` دارید:
-```bash
-pytest test.py
+python test.py
 ```
 
 ---
 
-## 👨‍💻 درباره نویسنده
+## 👨‍💻 نویسنده
 
-این پروژه با عشق برای کامیونیتی توسعه‌دهندگان فارسی‌زبان ساخته شده است.
+**علی کامرانی**
 
-- **توسعه‌دهنده:** Ali Kamrani
-- **گیت‌هاب:** [MRThugh](https://github.com/MRThugh)
-- **تاریخ ایجاد:** 28 آوریل 2026 (1405/02/08)
+- GitHub: [@MRThugh](https://github.com/MRThugh)
+- ایمیل: kamrani.exe@gmail.com
 
-اگر ایده، پیشنهاد یا باگی پیدا کردید، خوشحال میشم تو گیت‌هاب Issue بزنید یا Pull Request بفرستید! ❤️
+---
 
-## 📄 لایسنس
-این پروژه تحت لایسنس **MIT** منتشر شده است. به راحتی و آزادانه در پروژه‌های شخصی و تجاری خودتون ازش استفاده کنید.
+## 📄 مجوز
+
+این پروژه تحت مجوز **MIT** منتشر شده است. می‌توانید آزادانه از آن استفاده، تغییر دهید و در پروژه‌های خود به کار ببرید.
+
+---
+
+**ParsiKit** — توسعه نرم‌افزار فارسی را راحت‌تر و حرفه‌ای‌تر می‌کند. 🚀.
