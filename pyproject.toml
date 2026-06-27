@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "parsikit"
+version = "2.1.0"
+authors = [
+    { name = "Ali Kamrani", email = "kamrani.exe@gmail.com" }
+]
+description = "A comprehensive and pure Python library for Persian data formatting, validation, and graphical reshaping."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Natural Language :: Persian",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["parsikit*"]
