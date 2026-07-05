@@ -21,20 +21,22 @@ _ARABIC_TO_PERSIAN_TABLE: dict[int, int] = str.maketrans(
     }
 )
 
-# Standard QWERTY keys mapped to standard Persian keyboard
+# Standard QWERTY keys mapped to standard Persian keyboard (with shift & punctuation fixes)
 _QWERTY_TO_PERSIAN_MAP = {
     'q': 'ض', 'w': 'ص', 'e': 'ث', 'r': 'ق', 't': 'ف', 'y': 'غ', 'u': 'ع', 'i': 'ه', 'o': 'خ', 'p': 'ح', '[': 'ج', ']': 'چ',
     'a': 'ش', 's': 'س', 'd': 'ی', 'f': 'ب', 'g': 'ل', 'h': 'ا', 'j': 'ت', 'k': 'ن', 'l': 'م', ';': 'ک', "'": 'گ',
     'z': 'ظ', 'x': 'ط', 'c': 'ز', 'v': 'ر', 'b': 'ذ', 'n': 'د', 'm': 'پ', ',': 'و',
     'Q': 'ض', 'W': 'ص', 'E': 'ث', 'R': 'ق', 'T': 'ف', 'Y': 'غ', 'U': 'ع', 'I': 'ه', 'O': 'خ', 'P': 'ح', '{': 'ج', '}': 'چ',
-    'A': 'ش', 'S': 'س', 'D': 'ی', 'F': 'ب', 'G': 'ل', 'H': 'ا', 'J': 'ت', 'K': 'ن', 'L': 'م', ':': 'ک', '"': 'گ',
+    'A': 'ش', 'S': 'س', 'D': 'ی', 'F': 'ب', 'G': 'ل', 'H': 'آ', 'J': 'ت', 'K': 'ن', 'L': 'م', ':': 'ک', '"': 'گ',
     'Z': 'ظ', 'X': 'ط', 'C': 'ز', 'V': 'ر', 'B': 'ذ', 'N': 'د', 'M': 'پ', '<': 'و',
+    '\\': 'ژ', '|': 'ژ',
+    '?': '؟',
 }
 _KEYBOARD_TABLE = str.maketrans(_QWERTY_TO_PERSIAN_MAP)
 
 _ZWNJ = "\u200C"
 
-# Robust prefixes (Noisy ones like "هم" or "هر" are removed to prevent false-positives)
+# Robust prefixes
 _PREFIX_PATTERNS = [
     (re.compile(r"\b(می|نمی)\s+(?=\S)"), r"\1" + _ZWNJ),
     (re.compile(r"\b(بی)\s+(?=\S)"), r"\1" + _ZWNJ),
@@ -60,10 +62,11 @@ def strip_diacritics(text: str) -> str:
 
 
 def is_persian(text: str) -> bool:
-    """Check if the text contains at least one Persian/Arabic script character."""
+    """Check if the text contains at least one Persian/Arabic script character (including reshaped forms)."""
     if not text:
         return False
-    return bool(re.search(r"[\u0600-\u06FF]", text))
+    # Unicode ranges: standard Arabic/Persian + Supplements + Presentation Forms-A & Forms-B
+    return bool(re.search(r"[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]", text))
 
 
 def correct_keyboard_layout(text: str) -> str:
@@ -91,4 +94,90 @@ def standardize_persian(text: str, *, strip_diacritics_opt: bool = False) -> str
     # Collapse redundant spaces
     text = re.sub(r" {2,}", " ", text).strip()
 
+    return text
+
+
+def persian_sort_key(s: str) -> list[int]:
+    """Generate a sorting key for Persian strings to allow proper alphabetical ordering."""
+    if not isinstance(s, str):
+        return [0]
+    
+    # Normalize characters inside key generator to handle Arabic ی and ک
+    _norm_map = str.maketrans({
+        "ي": "ی", "ى": "ی", "ك": "ک",
+        "ة": "ه", "ۀ": "ه",
+    })
+    s = s.translate(_norm_map).lower()
+    
+    # Standard Persian Alphabetical Order
+    persian_alphabet = "آابپتثجچحخدذرزژسشصضطظعغفقکگلمنوهی"
+    weights = {char: idx for idx, char in enumerate(persian_alphabet)}
+    
+    key = []
+    for char in s:
+        if char == ' ':
+            key.append(-100)
+        elif char == '\u200C': # ZWNJ
+            key.append(-99)
+        elif char.isdigit():
+            # Support both English and Persian digits
+            digit_map = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+            try:
+                digit_val = int(char.translate(digit_map))
+                key.append(-50 + digit_val)
+            except ValueError:
+                key.append(ord(char))
+        elif char in weights:
+            key.append(1000 + weights[char])
+        else:
+            # English letters and other symbols
+            key.append(ord(char))
+            
+    return key
+
+
+def persian_sorted(iterable, *, reverse: bool = False):
+    """Sort an iterable alphabetically using correct Persian collation weights."""
+    return sorted(iterable, key=persian_sort_key, reverse=reverse)
+
+
+def beautify_persian_spacing(text: str) -> str:
+    """Optimize and beautify spaces around Persian punctuation and symbols.
+    
+    Creates a much more comfortable typing and reading feel for Persian users by:
+    - Automatically converting English commas and semicolons to Persian equivalents (، , ؛)
+      when they are surrounded by Persian script.
+    - Removing spaces before punctuation marks (., ،, ؛, ؟, !, :)
+    - Ensuring exactly one space exists after punctuation.
+    - Removing spaces inside parentheses, brackets, and braces: ( text ) -> (text).
+    """
+    if not text:
+        return text
+        
+    # 1. Convert English commas and semicolons when typed amidst Persian text (with or without spaces)
+    text = re.sub(r"([\u0600-\u06FF])\s*,\s*(?=[\u0600-\u06FF])", r"\1، ", text)
+    text = re.sub(r"([\u0600-\u06FF])\s*;\s*(?=[\u0600-\u06FF])", r"\1؛ ", text)
+
+    # 2. Remove spaces before standard Persian and English punctuation
+    text = re.sub(r"\s+([.،؛؟?!:])", r"\1", text)
+    
+    # 3. Ensure exactly one space after punctuation
+    text = re.sub(r"([.،؛؟?!:])(?=[^\s.،؛؟?!:])", r"\1 ", text)
+
+    # 4. Collapse spaces inside parenthetical enclosures
+    text = re.sub(r"\(\s+", "(", text)
+    text = re.sub(r"\s+\)", ")", text)
+    text = re.sub(r"\[\s+", "[", text)
+    text = re.sub(r"\s+\]", "]", text)
+    text = re.sub(r"\{\s+", "{", text)
+    text = re.sub(r"\s+\}", "}", text)
+
+    # Ensure outside spacing around parentheses and brackets
+    text = re.sub(r"(\S)\(", r"\1 (", text)
+    text = re.sub(r"\)(\S)", r") \1", text)
+    text = re.sub(r"(\S)\[", r"\1 [", text)
+    text = re.sub(r"\](\S)", r"] \1", text)
+
+    # Standardize redundant spaces
+    text = re.sub(r" {2,}", " ", text).strip()
     return text

@@ -46,9 +46,11 @@ def persian_to_english(text: str) -> str:
 
 
 def number_to_words(number: int | str) -> str:
-    """Convert numeric values to written Persian words."""
+    """Convert numeric values to written Persian words (handles formatting characters & scales up to Septillions)."""
     if isinstance(number, str):
-        clean_num = number.translate(_TO_ENGLISH_TABLE)
+        # Clean formatting characters to ensure safe casting
+        clean_num = number.replace(",", "").replace("،", "").replace(" ", "")
+        clean_num = clean_num.translate(_TO_ENGLISH_TABLE)
         try:
             num = int(clean_num)
         except ValueError:
@@ -81,7 +83,8 @@ def number_to_words(number: int | str) -> str:
         6: "ششصد", 7: "هفتصد", 8: "هشتصد", 9: "نهصد"
     }
     thousands = [
-        "", "هزار", "میلیون", "میلیارد", "تریلیون", "کوآدریلیون"
+        "", "هزار", "میلیون", "میلیارد", "تریلیون", "کوآدریلیون",
+        "کوئینتیلیون", "سکستیلیون", "سپتیلیون"
     ]
 
     def _convert_group(n: int) -> str:
@@ -110,6 +113,9 @@ def number_to_words(number: int | str) -> str:
     while temp > 0:
         chunks.append(temp % 1000)
         temp //= 1000
+
+    if len(chunks) > len(thousands):
+        raise ValueError("Number is too large to convert to words. Maximum supported is 999 septillion (27 digits).")
 
     words_list = []
     for i, chunk in enumerate(chunks):

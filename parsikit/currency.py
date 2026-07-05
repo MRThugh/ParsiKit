@@ -19,13 +19,14 @@ def format_currency(
     *,
     persian_digits: bool = False,
 ) -> str:
-    """Format a numeric amount as a readable currency with thousands separators."""
+    """Format a numeric amount as a readable currency with thousands separators (handles formatted inputs)."""
     currency = currency.lower()
     if currency not in _CURRENCY_LABELS:
         raise ValueError(f"Unknown currency '{currency}'")
 
     _persian_to_ascii = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
-    normalized = str(amount).translate(_persian_to_ascii)
+    clean_amount = str(amount).replace(",", "").replace("،", "").replace(" ", "")
+    normalized = clean_amount.translate(_persian_to_ascii)
 
     try:
         value = int(normalized)
@@ -57,13 +58,14 @@ def toman_to_rial(amount: int) -> int:
 
 
 def format_currency_to_words(amount: int | str, currency: str = "toman") -> str:
-    """Convert monetary values to written Persian words with proper currency label."""
+    """Convert monetary values to written Persian words with proper currency label (handles formatted inputs)."""
     currency = currency.lower()
     if currency not in _CURRENCY_LABELS:
         raise ValueError(f"Unknown currency '{currency}'")
 
     _persian_to_ascii = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
-    normalized = str(amount).translate(_persian_to_ascii)
+    clean_amount = str(amount).replace(",", "").replace("،", "").replace(" ", "")
+    normalized = clean_amount.translate(_persian_to_ascii)
     try:
         value = int(normalized)
     except ValueError:
@@ -85,7 +87,8 @@ def add_tax_and_toll(amount: int | str, tax_rate: float = 0.10) -> int:
         The total price including tax as an integer.
     """
     _persian_to_ascii = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
-    normalized = str(amount).translate(_persian_to_ascii)
+    clean_amount = str(amount).replace(",", "").replace("،", "").replace(" ", "")
+    normalized = clean_amount.translate(_persian_to_ascii)
     try:
         val = int(normalized)
     except ValueError:
@@ -109,7 +112,8 @@ def calculate_installments(principal: int | str, annual_interest_rate: float, mo
         The exact monthly installment amount as integer.
     """
     _persian_to_ascii = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
-    normalized = str(principal).translate(_persian_to_ascii)
+    clean_amount = str(principal).replace(",", "").replace("،", "").replace(" ", "")
+    normalized = clean_amount.translate(_persian_to_ascii)
     try:
         p = int(normalized)
     except ValueError:

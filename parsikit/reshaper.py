@@ -45,6 +45,9 @@ _SHAPES: dict[str, tuple[str, str, str, str, bool, bool]] = {
     'ئ': ('\uFE89', '\uFE8B', '\uFE8C', '\uFE8A', True, True),
     'ء': ('\uFE80', '', '', '', False, False),
     'ة': ('\uFE93', '', '', '\uFE94', True, False),
+    'أ': ('\uFE83', '', '', '\uFE84', True, False),
+    'إ': ('\uFE87', '', '', '\uFE88', True, False),
+    'ؤ': ('\uFE85', '', '', '\uFE86', True, False),
 }
 
 # Standard Lam-Alef ligatures: (Isolated, Final)
@@ -55,6 +58,12 @@ _LIGATURES: dict[tuple[str, str], tuple[str, str]] = {
     ('ل', 'إ'): ('\uFEF9', '\uFEFA'),
 }
 
+# Persian/Arabic diacritics Unicode set to ignore during connectivity checks
+_DIACRITICS = {
+    '\u064B', '\u064C', '\u064D', '\u064E', '\u064F', '\u0650', 
+    '\u0651', '\u0652', '\u0653', '\u0654', '\u0655', '\u0670'
+}
+
 
 def _is_rtl_char(c: str) -> bool:
     """Check if the given character belongs to the RTL Persian/Arabic Unicode blocks."""
@@ -63,7 +72,7 @@ def _is_rtl_char(c: str) -> bool:
 
 
 def _reshape_word(text: str) -> str:
-    """Core logic to shape Persian letters according to their surrounding characters."""
+    """Core logic to shape Persian letters according to their surrounding characters (ignores diacritics)."""
     n = len(text)
     if n == 0:
         return text
@@ -86,38 +95,62 @@ def _reshape_word(text: str) -> str:
         item = processed_chars[i]
 
         if isinstance(item, tuple):
-            # Process Lam-Alef ligature
+            # Process Lam-Alef ligature (find previous non-diacritic)
+            prev_item = None
+            for j in range(i - 1, -1, -1):
+                temp = processed_chars[j]
+                if isinstance(temp, tuple) or temp not in _DIACRITICS:
+                    prev_item = temp
+                    break
+            
             connects_prev = False
-            if i > 0:
-                prev_item = processed_chars[i-1]
-                if not isinstance(prev_item, tuple) and prev_item in _SHAPES:
-                    connects_prev = _SHAPES[prev_item][5]  # connects_left of previous char
+            if prev_item:
+                if isinstance(prev_item, tuple):
+                    connects_prev = False
+                elif prev_item in _SHAPES:
+                    connects_prev = _SHAPES[prev_item][5]
             
             isolated, final = _LIGATURES[item]
             shape = final if connects_prev else isolated
             result.append(shape)
         else:
             char = item
+            if char in _DIACRITICS:
+                result.append(char)
+                continue
+
             if char not in _SHAPES:
                 result.append(char)
                 continue
 
+            # Find previous non-diacritic neighbor
+            prev_item = None
+            for j in range(i - 1, -1, -1):
+                temp = processed_chars[j]
+                if isinstance(temp, tuple) or temp not in _DIACRITICS:
+                    prev_item = temp
+                    break
+
+            # Find next non-diacritic neighbor
+            next_item = None
+            for j in range(i + 1, n_processed):
+                temp = processed_chars[j]
+                if isinstance(temp, tuple) or temp not in _DIACRITICS:
+                    next_item = temp
+                    break
+
             # Check previous character connection
             connects_prev = False
-            if i > 0:
-                prev_item = processed_chars[i-1]
+            if prev_item:
                 if isinstance(prev_item, tuple):
-                    # Previous was ligature (ends with Alef which doesn't connect left)
                     connects_prev = False
                 elif prev_item in _SHAPES:
                     connects_prev = _SHAPES[prev_item][5] and _SHAPES[char][4]
 
             # Check next character connection
             connects_next = False
-            if i < n_processed - 1:
-                next_item = processed_chars[i+1]
+            if next_item:
                 if isinstance(next_item, tuple):
-                    # Next is ligature (starts with Lam which connects right)
                     connects_next = _SHAPES[char][5] and True
                 elif next_item in _SHAPES:
                     connects_next = _SHAPES[char][5] and _SHAPES[next_item][4]
@@ -139,18 +172,7 @@ def _reshape_word(text: str) -> str:
 
 
 def reshape_for_graphics(text: str, reverse: bool = True) -> str:
-    """Prepare Persian text for rendering inside engines that lack RTL/Shaping support.
-
-    Separates RTL and LTR blocks, shapes the Persian characters, and optionally
-    reverses the RTL parts so they display in correct reading order on LTR canvases.
-
-    Args:
-        text:    Standard Persian/English input string.
-        reverse: If True, reverses the layout of the RTL chunks for LTR graphic cards.
-
-    Returns:
-        The transformed string containing reshaped presentation forms.
-    """
+    """Prepare Persian text for rendering inside engines that lack RTL/Shaping support."""
     if not text:
         return text
 
@@ -189,3 +211,29 @@ def reshape_for_graphics(text: str, reverse: bool = True) -> str:
             output.append(block_text)
 
     return "".join(output)
+
+
+def reshape_paragraph_for_graphics(text: str, max_chars_per_line: int, reverse: bool = True) -> list[str]:
+    """Reshape a long paragraph, automatically wrapping it into multiple lines of a max length.
+    
+    Perfect for graphical applications (like Pillow, Pygame, OpenCV) that lack multiline wrapping and shaping.
+    """
+    if not text:
+        return []
+    words = text.split(" ")
+    lines = []
+    current_line = []
+    current_length = 0
+    for word in words:
+        word_len = len(word)
+        if current_length + word_len + (1 if current_line else 0) <= max_chars_per_line:
+            current_line.append(word)
+            current_length += word_len + (1 if len(current_line) > 1 else 0)
+        else:
+            if current_line:
+                lines.append(" ".join(current_line))
+            current_line = [word]
+            current_length = word_len
+    if current_line:
+        lines.append(" ".join(current_line))
+    return [reshape_for_graphics(line, reverse=reverse) for line in lines]
