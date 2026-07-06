@@ -12,6 +12,8 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Author](https://img.shields.io/badge/author-Ali%20Kamrani-purple.svg)](https://github.com/MRThugh)
 [![Version](https://img.shields.io/badge/version-3.2.0-blue.svg)](https://github.com/MRThugh/ParsiKit)
+[![Persian](https://img.shields.io/badge/lang-PERSIAN-green)](README-fa.md)
+[![English](https://img.shields.io/badge/lang-English-blue)](README.md)
 
 **A production-grade, highly performant, and pure Python software infrastructure for Persian text processing, validation, financial calculations, calendar conversions, and graphical text reshaping.**
 
