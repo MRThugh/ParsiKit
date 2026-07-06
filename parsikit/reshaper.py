@@ -214,10 +214,7 @@ def reshape_for_graphics(text: str, reverse: bool = True) -> str:
 
 
 def reshape_paragraph_for_graphics(text: str, max_chars_per_line: int, reverse: bool = True) -> list[str]:
-    """Reshape a long paragraph, automatically wrapping it into multiple lines of a max length.
-    
-    Perfect for graphical applications (like Pillow, Pygame, OpenCV) that lack multiline wrapping and shaping.
-    """
+    """Reshape a long paragraph, automatically wrapping it into multiple lines of a max length."""
     if not text:
         return []
     words = text.split(" ")

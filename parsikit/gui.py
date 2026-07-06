@@ -5,6 +5,8 @@ Cross-platform, GUI-agnostic dynamic typing helpers for Persian interfaces.
 Integrates with Tkinter, CustomTkinter, PySide, and PyQt.
 """
 
+from __future__ import annotations
+from typing import Literal, Any, Callable
 from parsikit.text import standardize_persian, beautify_persian_spacing
 
 
@@ -55,7 +57,7 @@ def _format_text(val: str) -> str:
     return beautify_persian_spacing(standardize_persian(val))
 
 
-_FORMATTERS = {
+_FORMATTERS: dict[str, Callable[[str], str]] = {
     "text": _format_text,
     "national_code": _format_national_code,
     "card_number": _format_card_number,
@@ -64,8 +66,8 @@ _FORMATTERS = {
 }
 
 
-def _bind_tkinter(widget, formatter) -> None:
-    def on_key_release(event):
+def _bind_tkinter(widget: Any, formatter: Callable[[str], str]) -> None:
+    def on_key_release(event: Any) -> None:
         if event.keysym in ("Shift_L", "Shift_R", "Control_L", "Control_R", "Alt_L", "Alt_R", "Caps_Lock", "Num_Lock", "Scroll_Lock"):
             return
             
@@ -83,8 +85,8 @@ def _bind_tkinter(widget, formatter) -> None:
     widget.bind("<KeyRelease>", on_key_release)
 
 
-def _bind_qt(widget, formatter) -> None:
-    def on_text_edited(text):
+def _bind_qt(widget: Any, formatter: Callable[[str], str]) -> None:
+    def on_text_edited(text: str) -> None:
         widget.textEdited.disconnect(on_text_edited)
         
         cursor_pos = widget.cursorPosition()
@@ -100,33 +102,21 @@ def _bind_qt(widget, formatter) -> None:
     widget.textEdited.connect(on_text_edited)
 
 
-def bind_persian_input(widget, input_type: str = "text") -> None:
-    """Binds real-time typing assistance and formatting to a GUI widget.
-    
-    Supports:
-        - Tkinter (Entry)
-        - CustomTkinter (CTkEntry)
-        - PySide / PyQt (QLineEdit)
-        
-    Supported input_types:
-        - "text": Standardizes Persian characters and beautifies punctuation spacing in real-time.
-        - "national_code": Auto-converts numbers to English and formats as XXX-XXXXXX-X as you type.
-        - "card_number": Auto-formats credit card digits as XXXX-XXXX-XXXX-XXXX as you type.
-        - "postal_code": Auto-formats as XXXXX-XXXXX as you type.
-        - "sheba": Auto-adds 'IR' prefix and spaces as 'IRXX XXXX XXXX...' as you type.
-    """
+def bind_persian_input(
+    widget: Any, 
+    input_type: Literal["text", "national_code", "card_number", "postal_code", "sheba"] = "text"
+) -> None:
+    """Binds real-time typing assistance and formatting to a GUI widget."""
     if input_type not in _FORMATTERS:
         raise ValueError(f"Unknown input_type '{input_type}'. Supported types: {list(_FORMATTERS.keys())}")
         
     formatter = _FORMATTERS[input_type]
     
-    # CustomTkinter CTkEntry support (extract underlying Tkinter Entry)
     if hasattr(widget, "_entry"):
         target_widget = widget._entry
     else:
         target_widget = widget
         
-    # Detect widget framework dynamically by duck typing
     if hasattr(target_widget, "bind") and hasattr(target_widget, "insert") and hasattr(target_widget, "delete"):
         _bind_tkinter(target_widget, formatter)
     elif hasattr(target_widget, "textEdited") and hasattr(target_widget, "setText") and hasattr(target_widget, "setCursorPosition"):

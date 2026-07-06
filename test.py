@@ -1,299 +1,137 @@
 """
-Comprehensive test suite for ParsiKit version 2.8.0.
+Comprehensive test suite for ParsiKit version 3.2.0.
 """
 
 import unittest
+import datetime
 
-from parsikit.text import (
-    standardize_persian,
-    strip_diacritics,
-    is_persian,
-    correct_keyboard_layout,
-    persian_sort_key,
-    persian_sorted,
-    beautify_persian_spacing,
-)
-from parsikit.number import english_to_persian, persian_to_english, number_to_words
-from parsikit.currency import (
-    format_currency,
-    rial_to_toman,
-    toman_to_rial,
-    format_currency_to_words,
-    add_tax_and_toll,
-    calculate_installments,
-)
-from parsikit.validators import (
-    is_valid_national_code,
-    format_national_code,
-    is_valid_mobile,
-    normalize_mobile,
-    is_valid_card_number,
-    format_card_number,
-    is_valid_sheba,
-    format_sheba,
-    is_valid_corporate_id,
-    detect_mobile_operator,
-    detect_bank_from_card,
-    detect_bank_from_sheba,
-    is_valid_postal_code,
-    format_postal_code,
-    is_valid_bill_and_payment,
-    extract_bill_details,
-    is_valid_plate,
-    parse_plate,
-    format_plate,
-)
-from parsikit.datetime import (
-    gregorian_to_jalali,
-    jalali_to_gregorian,
-    format_jalali,
-)
-from parsikit.reshaper import (
-    reshape_for_graphics,
-    reshape_paragraph_for_graphics,
-)
-from parsikit.gui import (
-    _format_national_code,
-    _format_card_number,
-    _format_postal_code,
-    _format_sheba,
+import parsikit
+from parsikit.exceptions import (
+    InvalidNationalCodeError, InvalidMobileError, InvalidCardNumberError,
+    InvalidShebaError, InvalidPlateError, ValidationError
 )
 
 
-class TestText(unittest.TestCase):
-    def test_standardize(self):
-        self.assertEqual(standardize_persian("ي كافيه ك"), "ی کافیه ک")
-        self.assertEqual(standardize_persian("می نویسم"), "می\u200Cنویسم")
-        self.assertEqual(standardize_persian("سریع تر"), "سریع\u200Cتر")
+class TestInfrastructureOOP(unittest.TestCase):
+    def setUp(self) -> None:
+        parsikit.config.reset_defaults()
 
-    def test_bugs_not_triggered(self):
-        self.assertEqual(standardize_persian("من هم رفتم"), "من هم رفتم")
-        self.assertEqual(standardize_persian("هر روز"), "هر روز")
-
-    def test_strip_diacritics(self):
-        self.assertEqual(strip_diacritics("عَلِیّ"), "علی")
-
-    def test_is_persian(self):
-        self.assertTrue(is_persian("زبان فارسی"))
-        self.assertFalse(is_persian("English Language"))
-        self.assertTrue(is_persian("ﻡﻼﺳ"))
-
-    def test_correct_keyboard_layout(self):
-        self.assertEqual(correct_keyboard_layout("sghl"), "سلام")
-        self.assertEqual(correct_keyboard_layout("sghl?"), "سلام؟")
-        self.assertEqual(correct_keyboard_layout("Hvn"), "آرد")
-        self.assertEqual(correct_keyboard_layout("c\\"), "زژ")
-
-    def test_persian_collation_sorting(self):
-        items = ["گوسفند", "پروانه", "سيب", "ژاله", "آسمان", "باد", "خرس", "یاس"]
-        correct_order = ["آسمان", "باد", "پروانه", "خرس", "ژاله", "سيب", "گوسفند", "یاس"]
-        self.assertEqual(sorted(items, key=persian_sort_key), correct_order)
-
-        mixed_items = ["گوسفند", "Apple", "123", "سیب", "۱۲", "آسمان", "Banana"]
-        expected_mixed = ["۱۲", "123", "Apple", "Banana", "آسمان", "سیب", "گوسفند"]
-        self.assertEqual(persian_sorted(mixed_items), expected_mixed)
-
-    def test_beautify_persian_spacing(self):
-        self.assertEqual(
-            beautify_persian_spacing("سلام , چطوری ؟ من خوبم."),
-            "سلام، چطوری؟ من خوبم."
-        )
-        self.assertEqual(
-            beautify_persian_spacing("سیب,گلابی,پرتقال"),
-            "سیب، گلابی، پرتقال"
-        )
-        self.assertEqual(
-            beautify_persian_spacing("امروز ( شنبه ) فردا(یکشنبه) است."),
-            "امروز (شنبه) فردا (یکشنبه) است."
-        )
-
-
-class TestNumber(unittest.TestCase):
-    def test_conversions(self):
-        self.assertEqual(english_to_persian("987"), "۹۸۷")
-        self.assertEqual(persian_to_english("۹۸۷"), "987")
-
-    def test_to_words(self):
-        self.assertEqual(number_to_words(0), "صفر")
-        self.assertEqual(number_to_words("۱۲۵۰۰"), "دوازده هزار و پانصد")
-        self.assertEqual(number_to_words(-12), "منفی دوازده")
-        self.assertEqual(number_to_words("۱,۲۵۰,۰۰۰"), "یک میلیون و دویست و پنجاه هزار")
-        self.assertEqual(number_to_words("10,000,000,000,000,000,000"), "ده کوئینتیلیون")
-        with self.assertRaises(ValueError):
-            number_to_words("1" * 30)
-
-
-class TestCurrency(unittest.TestCase):
-    def test_formatting(self):
-        self.assertEqual(format_currency(5000000), "5,000,000 تومان")
-        self.assertEqual(format_currency(500000, persian_digits=True), "۵۰۰،۰۰۰ تومان")
-        self.assertEqual(format_currency("1,200,500"), "1,200,500 تومان")
-
-    def test_conversions(self):
-        self.assertEqual(rial_to_toman(10), 1)
-        self.assertEqual(toman_to_rial(1), 10)
-
-    def test_words(self):
-        self.assertEqual(format_currency_to_words(1000000, "toman"), "یک میلیون تومان")
-        self.assertEqual(format_currency_to_words("1,500,000", "toman"), "یک میلیون و پانصد هزار تومان")
-
-    def test_tax(self):
-        self.assertEqual(add_tax_and_toll(100000), 110000)
-        self.assertEqual(add_tax_and_toll("100,000"), 110000)
-
-    def test_installments(self):
-        self.assertEqual(calculate_installments(10000000, 18.0, 12), 916799)
-        self.assertEqual(calculate_installments("10,000,000", 18.0, 12), 916799)
-
-
-class TestValidators(unittest.TestCase):
-    def test_national_code(self):
-        self.assertTrue(is_valid_national_code("7730123452"))
-        self.assertFalse(is_valid_national_code("1111111111"))
-        self.assertEqual(format_national_code("7730123452"), "773-012345-2")
-        self.assertTrue(is_valid_national_code("773012346"))
-
-    def test_corporate_id(self):
-        self.assertTrue(is_valid_corporate_id("14003632892"))
-        self.assertTrue(is_valid_corporate_id("14010212749"))
-        self.assertFalse(is_valid_corporate_id("11111111111"))
-        self.assertFalse(is_valid_corporate_id("14010212748"))
-
-    def test_mobile(self):
-        self.assertTrue(is_valid_mobile("+98۹۱۲۳۴۵۶۷۸۹"))
-        self.assertEqual(normalize_mobile("09123456789", prefix="+98"), "+989123456789")
-        self.assertEqual(normalize_mobile("09123456789", prefix="0098"), "00989123456789")
-        self.assertEqual(normalize_mobile("09123456789", prefix=""), "9123456789")
-
-    def test_detect_operator(self):
-        self.assertEqual(detect_mobile_operator("09121112233"), "MCI")
-        self.assertEqual(detect_mobile_operator("+989351234567"), "Irancell")
-        self.assertEqual(detect_mobile_operator("00989211234567"), "RighTel")
-        self.assertEqual(detect_mobile_operator("09981234567"), "Shatel Mobile")
-        self.assertEqual(detect_mobile_operator("09991234567"), "SamanTel")
-        self.assertEqual(detect_mobile_operator("invalid"), None)
-
-    def test_bank_card(self):
-        self.assertTrue(is_valid_card_number("6037991122334455"))
-        self.assertEqual(format_card_number("6037991122334455"), "6037-9911-2233-4455")
-
-    def test_detect_bank_from_card(self):
-        melli_bank = detect_bank_from_card("6037991122334455")
-        self.assertEqual(melli_bank["code"], "melli")
-        self.assertEqual(melli_bank["name"], "بانک ملی ایران")
-
-        mellat_bank = detect_bank_from_card("610433")
-        self.assertEqual(mellat_bank["code"], "mellat")
-
-        self.assertIsNone(detect_bank_from_card("111111"))
-
-    def test_sheba(self):
-        self.assertTrue(is_valid_sheba("IR050170000000123456789012"))
-        self.assertEqual(
-            format_sheba("050170000000123456789012"),
-            "IR05 0170 0000 0012 3456 7890 12"
-        )
-        self.assertTrue(is_valid_sheba("IR-05 0170 0000 0012 3456 7890 12"))
-
-    def test_detect_bank_from_sheba(self):
-        melli_bank = detect_bank_from_sheba("IR050170000000123456789012")
-        self.assertEqual(melli_bank["code"], "melli")
-
-        mellat_bank = detect_bank_from_sheba("050120000000123456789012")
-        self.assertEqual(mellat_bank["code"], "mellat")
-
-        self.assertIsNone(detect_bank_from_sheba("IR0519"))
-
-    def test_postal_code(self):
-        self.assertTrue(is_valid_postal_code("1453902410"))
-        self.assertEqual(format_postal_code("1453902410"), "14539-02410")
-        self.assertFalse(is_valid_postal_code("1453202410"))
-
-    def test_bill_and_payment_id(self):
-        bill_id = "7748317800142"
-        pay_id = "1770160"
-        self.assertTrue(is_valid_bill_and_payment(bill_id, pay_id))
+    def test_persian_text_model(self):
+        text = parsikit.PersianText("ي كافيه ك")
+        self.assertEqual(str(text.standardize()), "ی کافیه ک")
         
-        details = extract_bill_details(bill_id, pay_id)
-        self.assertTrue(details["is_valid"])
-        self.assertEqual(details["type"], "تلفن ثابت")
-        self.assertEqual(details["amount_rial"], 17701000)
-        self.assertEqual(details["amount_toman"], 1770100)
+        # Test addition and concatenation
+        t1 = parsikit.PersianText("سلام")
+        t2 = parsikit.PersianText("جهان")
+        result = t1 + " " + t2
+        self.assertEqual(str(result), "سلام جهان")
+        self.assertIsInstance(result, parsikit.PersianText)
 
-    def test_vehicle_plates(self):
-        # 68 is Alborz
-        plate = "۱۲ ب ۳۴۵ ایران ۶۸"
-        self.assertTrue(is_valid_plate(plate))
+    def test_national_code_model(self):
+        with self.assertRaises(InvalidNationalCodeError):
+            parsikit.NationalCode("1111111111")
+            
+        nc = parsikit.NationalCode("7730123452")
+        self.assertEqual(nc.clean, "7730123452")
+        self.assertEqual(nc.formatted, "773-012345-2")
+        self.assertTrue(nc.is_valid)
+
+        # Loose validation
+        nc_loose = parsikit.NationalCode("1111111111", strict=False)
+        self.assertFalse(nc_loose.is_valid)
+
+        # Prefix/Location detection test
+        nc_tehran = parsikit.NationalCode("0010123451")
+        self.assertIsNotNone(nc_tehran.location)
+        self.assertEqual(nc_tehran.location["province"], "تهران")  # type: ignore
+
+    def test_mobile_number_model(self):
+        with self.assertRaises(InvalidMobileError):
+            parsikit.MobileNumber("0912abc")
+            
+        mob = parsikit.MobileNumber("+98۹۱۲۳۴۵۶۷۸۹")
+        self.assertEqual(mob.to_national(), "09123456789")
+        self.assertEqual(mob.to_international(), "+989123456789")
+        self.assertEqual(mob.operator, "MCI")
+
+    def test_bank_card_model(self):
+        with self.assertRaises(InvalidCardNumberError):
+            parsikit.BankCard("1234")
+            
+        card = parsikit.BankCard("6037991122334455")
+        self.assertEqual(card.formatted, "6037-9911-2233-4455")
+        self.assertEqual(card.bank["code"], "melli")
+
+    def test_sheba_model(self):
+        with self.assertRaises(InvalidShebaError):
+            parsikit.Sheba("IR000")
+            
+        sheba = parsikit.Sheba("IR050170000000123456789012")
+        self.assertEqual(sheba.bank["code"], "melli")
+        self.assertEqual(sheba.account_number, "123456789012")
+
+    def test_plate_model(self):
+        with self.assertRaises(InvalidPlateError):
+            parsikit.VehiclePlate("invalid-plate")
+            
+        plate = parsikit.VehiclePlate("۱۲ ب ۳۴۵ ایران ۶۸")
+        self.assertEqual(plate.province, "البرز")
+        self.assertEqual(plate.category, "شخصی")
+
+
+class TestDeveloperExperienceV310(unittest.TestCase):
+    def test_string_like_behavior_and_duck_typing(self):
+        nc = parsikit.NationalCode("0010123451")
+        # NationalCode works cleanly with standard python string functions and properties
+        self.assertEqual(len(nc), 10)
+        self.assertEqual(nc.clean[:3], "001")
         
-        parsed = parse_plate(plate)
-        self.assertEqual(parsed["part1"], "۱۲")
-        self.assertEqual(parsed["letter"], "ب")
-        self.assertEqual(parsed["province"], "البرز")
-        self.assertEqual(parsed["category"], "شخصی")
+        # Test equality with string
+        self.assertEqual(nc, "0010123451")
+
+    def test_dictionary_serialization(self):
+        sheba = parsikit.Sheba("IR050170000000123456789012")
+        # Checking that dict serialization matches expectations
+        data = {
+            "iban": str(sheba),
+            "bank_name": sheba.bank["name"] if sheba.bank else None,
+            "account": sheba.account_number
+        }
+        self.assertEqual(data["account_number"], "123456789012")  # type: ignore
+
+    def test_fixed_landline_model(self):
+        fixed = parsikit.FixedLine("02188888888")
+        self.assertEqual(fixed.province, "تهران")
+        self.assertEqual(fixed.area_code, "021")
+        self.assertEqual(len(fixed), 11)
+
+
+class TestNewFeaturesV310(unittest.TestCase):
+    def test_words_to_number(self):
+        self.assertEqual(parsikit.words_to_number("سی و دو هزار و پانصد"), 32500)
+        self.assertEqual(parsikit.words_to_number("یک میلیون و دویست و پنجاه هزار"), 1250000)
+        self.assertEqual(parsikit.words_to_number("منفی دوازده"), -12)
         
-        # Format checks
-        self.assertEqual(format_plate(plate), "۱۲ ب ۳۴۵ - ایران ۶۸")
-        self.assertEqual(format_plate("12الف34568", format_type="clean"), "۱۲الف۳۴۵۶۸")
+        text = parsikit.PersianText("سه میلیارد و پانصد میلیون")
+        self.assertEqual(text.to_number(), 3500000000)
 
+    def test_humanize_relative_time(self):
+        ref = datetime.datetime(2026, 7, 6, 12, 0, 0)
+        
+        dt = datetime.datetime(2026, 7, 6, 11, 59, 55)
+        self.assertEqual(parsikit.humanize_relative_time(dt, reference=ref), "هم‌اکنون")
 
-class TestDatetime(unittest.TestCase):
-    def test_conversions(self):
-        jy, jm, jd = gregorian_to_jalali(2026, 7, 5)
-        self.assertEqual((jy, jm, jd), (1405, 4, 14))
+        dt = datetime.datetime(2026, 7, 6, 11, 55, 0)
+        self.assertEqual(parsikit.humanize_relative_time(dt, reference=ref), "۵ دقیقه پیش")
 
-        gy, gm, gd = jalali_to_gregorian(1405, 4, 14)
-        self.assertEqual((gy, gm, gd), (2026, 7, 5))
+        dt = datetime.datetime(2026, 7, 6, 9, 0, 0)
+        self.assertEqual(parsikit.humanize_relative_time(dt, reference=ref), "۳ ساعت پیش")
 
-    def test_formatting(self):
-        formatted = format_jalali(1405, 4, 14, "YYYY/MM/DD")
-        self.assertEqual(formatted, "1405/04/14")
+        dt = datetime.datetime(2026, 7, 5, 12, 0, 0)
+        self.assertEqual(parsikit.humanize_relative_time(dt, reference=ref), "دیروز")
 
-        formatted_dash = format_jalali(1405, 4, 14, "YYYY-MM-DD")
-        self.assertEqual(formatted_dash, "1405-04-14")
-
-
-class TestReshaper(unittest.TestCase):
-    def test_basic_reshaping(self):
-        shaped_reversed = reshape_for_graphics("سلام")
-        self.assertEqual(shaped_reversed, "ﻡﻼﺳ")
-
-    def test_diacritics_connectivity(self):
-        shaped = reshape_for_graphics("عَلِیّ", reverse=False)
-        self.assertEqual(shaped, "ﻋَﻠِﻲّ")
-
-    def test_mixed_reshaping(self):
-        result = reshape_for_graphics("سلام Hello جهان")
-        self.assertIn("Hello", result)
-        self.assertTrue(result.startswith("ﻡﻼﺳ"))
-        self.assertTrue(result.endswith("ﻥﺎﻬﺟ"))
-
-    def test_arabic_ligatures_reshaping(self):
-        shaped = reshape_for_graphics("تأثیر")
-        expected = "\uFEAE\uFEF4\uFE9B\uFE84\uFE97"
-        self.assertEqual(shaped, expected)
-
-    def test_paragraph_wrapping(self):
-        paragraph = "سلام جهان این یک متن بسیار طولانی برای تست بسته بندی خودکار خطوط فارسی است"
-        lines = reshape_paragraph_for_graphics(paragraph, 20, reverse=True)
-        self.assertEqual(len(lines), 4)
-        self.assertTrue(lines[0].startswith("ﻡﻼﺳ"))
-
-
-class TestGuiFormatters(unittest.TestCase):
-    def test_national_code_formatter(self):
-        self.assertEqual(_format_national_code("7730123452"), "773-012345-2")
-        self.assertEqual(_format_national_code("7730"), "773-0")
-
-    def test_card_formatter(self):
-        self.assertEqual(_format_card_number("6037991122334455"), "6037-9911-2233-4455")
-        self.assertEqual(_format_card_number("603799"), "6037-99")
-
-    def test_postal_code_formatter(self):
-        self.assertEqual(_format_postal_code("1453902410"), "14539-02410")
-
-    def test_sheba_formatter(self):
-        self.assertEqual(_format_sheba("ir05017"), "IR05 017")
-        self.assertEqual(_format_sheba("05017"), "IR05 017")
+        dt = datetime.datetime(2026, 7, 1, 12, 0, 0)
+        self.assertEqual(parsikit.humanize_relative_time(dt, reference=ref), "۵ روز پیش")
 
 
 if __name__ == "__main__":

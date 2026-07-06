@@ -5,7 +5,9 @@ Monetary utilities, unit conversions, tax calculations, and loan installment pla
 """
 
 from __future__ import annotations
+from typing import Literal
 from parsikit.number import number_to_words
+from parsikit.config import config
 
 _CURRENCY_LABELS = {
     "toman": "تومان",
@@ -15,13 +17,16 @@ _CURRENCY_LABELS = {
 
 def format_currency(
     amount: int | str,
-    currency: str = "toman",
+    currency: Literal["toman", "rial"] | None = None,
     *,
     persian_digits: bool = False,
 ) -> str:
-    """Format a numeric amount as a readable currency with thousands separators (handles formatted inputs)."""
-    currency = currency.lower()
-    if currency not in _CURRENCY_LABELS:
+    """Format a numeric amount as a readable currency with thousands separators."""
+    if currency is None:
+        currency = config.default_currency  # type: ignore
+
+    currency_clean = currency.lower()
+    if currency_clean not in _CURRENCY_LABELS:
         raise ValueError(f"Unknown currency '{currency}'")
 
     _persian_to_ascii = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
@@ -33,7 +38,7 @@ def format_currency(
     except ValueError:
         raise ValueError(f"Cannot convert '{amount}' to an integer amount.") from None
 
-    label = _CURRENCY_LABELS[currency]
+    label = _CURRENCY_LABELS[currency_clean]
 
     if persian_digits:
         _to_persian = str.maketrans("0123456789,", "۰۱۲۳۴۵۶۷۸۹،")
@@ -57,10 +62,16 @@ def toman_to_rial(amount: int) -> int:
     return amount * 10
 
 
-def format_currency_to_words(amount: int | str, currency: str = "toman") -> str:
-    """Convert monetary values to written Persian words with proper currency label (handles formatted inputs)."""
-    currency = currency.lower()
-    if currency not in _CURRENCY_LABELS:
+def format_currency_to_words(
+    amount: int | str, 
+    currency: Literal["toman", "rial"] | None = None
+) -> str:
+    """Convert monetary values to written Persian words with proper currency label."""
+    if currency is None:
+        currency = config.default_currency  # type: ignore
+
+    currency_clean = currency.lower()
+    if currency_clean not in _CURRENCY_LABELS:
         raise ValueError(f"Unknown currency '{currency}'")
 
     _persian_to_ascii = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
@@ -72,20 +83,15 @@ def format_currency_to_words(amount: int | str, currency: str = "toman") -> str:
         raise ValueError(f"Cannot convert '{amount}' to an integer amount.") from None
 
     words_part = number_to_words(value)
-    label = _CURRENCY_LABELS[currency]
+    label = _CURRENCY_LABELS[currency_clean]
     return f"{words_part} {label}"
 
 
-def add_tax_and_toll(amount: int | str, tax_rate: float = 0.10) -> int:
-    """Calculate total amount including Value Added Tax (VAT). Default is 10%.
+def add_tax_and_toll(amount: int | str, tax_rate: float | None = None) -> int:
+    """Calculate total amount including Value Added Tax (VAT). Uses config rate by default."""
+    if tax_rate is None:
+        tax_rate = config.default_tax_rate
 
-    Args:
-        amount:   The price amount as int or string.
-        tax_rate: Tax rate as float (e.g. 0.10 for 10%).
-
-    Returns:
-        The total price including tax as an integer.
-    """
     _persian_to_ascii = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
     clean_amount = str(amount).replace(",", "").replace("،", "").replace(" ", "")
     normalized = clean_amount.translate(_persian_to_ascii)
@@ -101,16 +107,7 @@ def add_tax_and_toll(amount: int | str, tax_rate: float = 0.10) -> int:
 
 
 def calculate_installments(principal: int | str, annual_interest_rate: float, months: int) -> int:
-    """Calculate the monthly installment amount for loan amortization.
-
-    Args:
-        principal:            The total loan amount.
-        annual_interest_rate: Annual interest percentage (e.g. 18.0 or 23.0).
-        months:               Number of payment months.
-
-    Returns:
-        The exact monthly installment amount as integer.
-    """
+    """Calculate the monthly installment amount for loan amortization."""
     _persian_to_ascii = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
     clean_amount = str(principal).replace(",", "").replace("،", "").replace(" ", "")
     normalized = clean_amount.translate(_persian_to_ascii)
@@ -125,7 +122,6 @@ def calculate_installments(principal: int | str, annual_interest_rate: float, mo
     if annual_interest_rate == 0:
         return int(p / months)
 
-    # Convert yearly percentage rate to a monthly decimal rate
     r = (annual_interest_rate / 100) / 12
     numerator = p * r * ((1 + r) ** months)
     denominator = ((1 + r) ** months) - 1

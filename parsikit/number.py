@@ -4,6 +4,9 @@ parsikit.number
 Number conversion utilities and textual representations of numbers.
 """
 
+from __future__ import annotations
+from parsikit.cache import memoize
+
 _TO_PERSIAN_TABLE = str.maketrans(
     {
         "0": "\u06F0", "1": "\u06F1", "2": "\u06F2",
@@ -45,10 +48,10 @@ def persian_to_english(text: str) -> str:
     return text.translate(_TO_ENGLISH_TABLE)
 
 
+@memoize(maxsize=1024)
 def number_to_words(number: int | str) -> str:
-    """Convert numeric values to written Persian words (handles formatting characters & scales up to Septillions)."""
+    """Convert numeric values to written Persian words."""
     if isinstance(number, str):
-        # Clean formatting characters to ensure safe casting
         clean_num = number.replace(",", "").replace("،", "").replace(" ", "")
         clean_num = clean_num.translate(_TO_ENGLISH_TABLE)
         try:
@@ -115,7 +118,7 @@ def number_to_words(number: int | str) -> str:
         temp //= 1000
 
     if len(chunks) > len(thousands):
-        raise ValueError("Number is too large to convert to words. Maximum supported is 999 septillion (27 digits).")
+        raise ValueError("Number is too large to convert to words. Maximum supported is 999 septillion.")
 
     words_list = []
     for i, chunk in enumerate(chunks):

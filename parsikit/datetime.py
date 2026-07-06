@@ -5,7 +5,17 @@ Zero-dependency, high-precision astronomical date conversion utilities
 between Gregorian and Jalali (Shamsi) calendars.
 """
 
+from __future__ import annotations
+import datetime
+from parsikit.cache import memoize
 
+_JALALI_MONTH_NAMES = [
+    "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
+    "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"
+]
+
+
+@memoize(maxsize=4096)
 def gregorian_to_jalali(gy: int, gm: int, gd: int) -> tuple[int, int, int]:
     """Convert a Gregorian date (Year, Month, Day) to Jalali (Shamsi) date."""
     g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 335]
@@ -49,6 +59,7 @@ def gregorian_to_jalali(gy: int, gm: int, gd: int) -> tuple[int, int, int]:
     return jy, jm, jd
 
 
+@memoize(maxsize=4096)
 def jalali_to_gregorian(jy: int, jm: int, jd: int) -> tuple[int, int, int]:
     """Convert a Jalali (Shamsi) date (Year, Month, Day) to Gregorian date."""
     jy2 = jy - 979
@@ -103,3 +114,76 @@ def format_jalali(jy: int, jm: int, jd: int, pattern: str = "YYYY/MM/DD") -> str
     m_str = str(jm).zfill(2)
     d_str = str(jd).zfill(2)
     return pattern.replace("YYYY", y_str).replace("MM", m_str).replace("DD", d_str)
+
+
+def get_jalali_month_name(month: int) -> str:
+    """Get the Persian name of a Jalali month (1 to 12)."""
+    if not (1 <= month <= 12):
+        raise ValueError("Month must be between 1 and 12.")
+    return _JALALI_MONTH_NAMES[month - 1]
+
+
+def is_jalali_leap(jy: int) -> bool:
+    """Determine if a Jalali year is a leap (Kabiseh) year (astronomical 2820-year cycle)."""
+    epbase = jy - 474 if jy > 0 else jy - 473
+    epyear = 474 + (epbase % 2820)
+    return ((epyear * 682) % 2816) < 682
+
+
+def humanize_relative_time(
+    dt_or_seconds: datetime.datetime | float,
+    reference: datetime.datetime | None = None,
+) -> str:
+    """Convert a datetime or a timestamp into a friendly human-readable relative time string in Persian.
+    
+    E.g. "۳ دقیقه پیش", "دیروز", "۱ سال قبل", "فردا", "هم‌اکنون".
+    """
+    if reference is None:
+        reference = datetime.datetime.now()
+
+    if isinstance(dt_or_seconds, (int, float)):
+        dt = datetime.datetime.fromtimestamp(dt_or_seconds)
+    else:
+        dt = dt_or_seconds
+
+    diff = reference - dt
+    seconds = diff.total_seconds()
+    is_past = seconds >= 0
+    abs_seconds = abs(seconds)
+
+    if abs_seconds < 10:
+        return "هم‌اکنون" if is_past else "چند ثانیه بعد"
+    elif abs_seconds < 60:
+        val = int(abs_seconds)
+        suffix = "پیش" if is_past else "بعد"
+        return f"{val} ثانیه {suffix}"
+    elif abs_seconds < 3600:
+        val = int(abs_seconds // 60)
+        suffix = "پیش" if is_past else "بعد"
+        return f"{val} دقیقه {suffix}"
+    elif abs_seconds < 86400:
+        val = int(abs_seconds // 3600)
+        suffix = "پیش" if is_past else "بعد"
+        if val == 1:
+            return "۱ ساعت پیش" if is_past else "۱ ساعت بعد"
+        return f"{val} ساعت {suffix}"
+    elif abs_seconds < 172800:
+        if is_past:
+            return "دیروز"
+        return "فردا"
+    elif abs_seconds < 2592000:
+        val = int(abs_seconds // 86400)
+        suffix = "پیش" if is_past else "بعد"
+        return f"{val} روز {suffix}"
+    elif abs_seconds < 31104000:
+        val = int(abs_seconds // 2592000)
+        suffix = "پیش" if is_past else "بعد"
+        if val == 1:
+            return "۱ ماه پیش" if is_past else "۱ ماه بعد"
+        return f"{val} ماه {suffix}"
+    else:
+        val = int(abs_seconds // 31104000)
+        suffix = "قبل" if is_past else "بعد"
+        if val == 1:
+            return "۱ سال قبل" if is_past else "۱ سال بعد"
+        return f"{val} سال {suffix}"

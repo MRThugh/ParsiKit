@@ -4,6 +4,8 @@ parsikit.text
 Text standardization, normalization, and keyboard layout correction.
 """
 
+from __future__ import annotations
+from typing import Iterable, TypeVar
 import re
 
 # Table for converting Arabic characters to Persian equivalents
@@ -52,6 +54,8 @@ _SUFFIX_PATTERNS = [
 
 _ZWNJ_PATTERNS = _PREFIX_PATTERNS + _SUFFIX_PATTERNS
 
+_T = TypeVar("_T")
+
 
 def strip_diacritics(text: str) -> str:
     """Remove Arabic/Persian diacritics (Fatha, Kasra, Damma, Tanween, Tashdeed, Sukuun)."""
@@ -65,7 +69,6 @@ def is_persian(text: str) -> bool:
     """Check if the text contains at least one Persian/Arabic script character (including reshaped forms)."""
     if not text:
         return False
-    # Unicode ranges: standard Arabic/Persian + Supplements + Presentation Forms-A & Forms-B
     return bool(re.search(r"[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]", text))
 
 
@@ -102,14 +105,12 @@ def persian_sort_key(s: str) -> list[int]:
     if not isinstance(s, str):
         return [0]
     
-    # Normalize characters inside key generator to handle Arabic ی and ک
     _norm_map = str.maketrans({
         "ي": "ی", "ى": "ی", "ك": "ک",
         "ة": "ه", "ۀ": "ه",
     })
     s = s.translate(_norm_map).lower()
     
-    # Standard Persian Alphabetical Order
     persian_alphabet = "آابپتثجچحخدذرزژسشصضطظعغفقکگلمنوهی"
     weights = {char: idx for idx, char in enumerate(persian_alphabet)}
     
@@ -120,7 +121,6 @@ def persian_sort_key(s: str) -> list[int]:
         elif char == '\u200C': # ZWNJ
             key.append(-99)
         elif char.isdigit():
-            # Support both English and Persian digits
             digit_map = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
             try:
                 digit_val = int(char.translate(digit_map))
@@ -130,54 +130,167 @@ def persian_sort_key(s: str) -> list[int]:
         elif char in weights:
             key.append(1000 + weights[char])
         else:
-            # English letters and other symbols
             key.append(ord(char))
             
     return key
 
 
-def persian_sorted(iterable, *, reverse: bool = False):
+def persian_sorted(iterable: Iterable[_T], *, reverse: bool = False) -> list[_T]:
     """Sort an iterable alphabetically using correct Persian collation weights."""
-    return sorted(iterable, key=persian_sort_key, reverse=reverse)
+    return sorted(iterable, key=persian_sort_key, reverse=reverse)  # type: ignore
 
 
 def beautify_persian_spacing(text: str) -> str:
-    """Optimize and beautify spaces around Persian punctuation and symbols.
-    
-    Creates a much more comfortable typing and reading feel for Persian users by:
-    - Automatically converting English commas and semicolons to Persian equivalents (، , ؛)
-      when they are surrounded by Persian script.
-    - Removing spaces before punctuation marks (., ،, ؛, ؟, !, :)
-    - Ensuring exactly one space exists after punctuation.
-    - Removing spaces inside parentheses, brackets, and braces: ( text ) -> (text).
-    """
+    """Optimize and beautify spaces around Persian punctuation and symbols."""
     if not text:
         return text
         
-    # 1. Convert English commas and semicolons when typed amidst Persian text (with or without spaces)
     text = re.sub(r"([\u0600-\u06FF])\s*,\s*(?=[\u0600-\u06FF])", r"\1، ", text)
     text = re.sub(r"([\u0600-\u06FF])\s*;\s*(?=[\u0600-\u06FF])", r"\1؛ ", text)
 
-    # 2. Remove spaces before standard Persian and English punctuation
     text = re.sub(r"\s+([.،؛؟?!:])", r"\1", text)
-    
-    # 3. Ensure exactly one space after punctuation
     text = re.sub(r"([.،؛؟?!:])(?=[^\s.،؛؟?!:])", r"\1 ", text)
 
-    # 4. Collapse spaces inside parenthetical enclosures
-    text = re.sub(r"\(\s+", "(", text)
     text = re.sub(r"\s+\)", ")", text)
     text = re.sub(r"\[\s+", "[", text)
     text = re.sub(r"\s+\]", "]", text)
     text = re.sub(r"\{\s+", "{", text)
     text = re.sub(r"\s+\}", "}", text)
 
-    # Ensure outside spacing around parentheses and brackets
     text = re.sub(r"(\S)\(", r"\1 (", text)
     text = re.sub(r"\)(\S)", r") \1", text)
     text = re.sub(r"(\S)\[", r"\1 [", text)
     text = re.sub(r"\](\S)", r"] \1", text)
 
-    # Standardize redundant spaces
     text = re.sub(r" {2,}", " ", text).strip()
     return text
+
+
+def extract_mobiles(text: str) -> list[str]:
+    """Extract and normalize all unique Iranian mobile numbers found inside a raw text block."""
+    if not text:
+        return []
+    
+    _TO_ENGLISH_LOCAL = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+    eng_text = text.translate(_TO_ENGLISH_LOCAL)
+    
+    pattern = re.compile(r"\b(?:\+98|0098|98|0)?9\d{9}\b")
+    matches = pattern.findall(eng_text)
+    
+    from parsikit.validators import normalize_mobile, is_valid_mobile
+    normalized_list = []
+    for match in matches:
+        if is_valid_mobile(match):
+            normalized_list.append(normalize_mobile(match, prefix="0"))
+            
+    seen = set()
+    result = []
+    for num in normalized_list:
+        if num not in seen:
+            seen.add(num)
+            result.append(num)
+    return result
+
+
+def extract_national_codes(text: str) -> list[str]:
+    """Extract and validate all Iranian national codes (کد ملی) found inside a raw text block."""
+    if not text:
+        return []
+    
+    _TO_ENGLISH_LOCAL = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+    eng_text = text.translate(_TO_ENGLISH_LOCAL)
+    
+    pattern = re.compile(r"\b\d{10}\b|\b\d{3}-\d{6}-\d\b")
+    matches = pattern.findall(eng_text)
+    
+    from parsikit.validators import is_valid_national_code
+    valid_codes = []
+    for match in matches:
+        clean_code = match.replace("-", "")
+        if is_valid_national_code(clean_code):
+            valid_codes.append(clean_code)
+            
+    seen = set()
+    result = []
+    for code in valid_codes:
+        if code not in seen:
+            seen.add(code)
+            result.append(code)
+    return result
+
+
+def words_to_number(text: str) -> int:
+    """Convert Persian textual numbers (e.g. 'سی و دو هزار و پانصد') back into an integer.
+    
+    Supports exceptionally large values up to Septillions.
+    """
+    if not text:
+        return 0
+
+    clean_text = text.replace("،", "").replace(",", "").strip()
+    
+    ones = {
+        "صفر": 0, "یک": 1, "دو": 2, "سه": 3, "چهار": 4, "پنج": 5, "شش": 6, "هفت": 7, "هشت": 8, "نه": 9,
+    }
+    teens = {
+        "ده": 10, "یازده": 11, "دوازده": 12, "سیزده": 13, "چهارده": 14, "پانزده": 15, "شانزده": 16,
+        "هفده": 17, "هجده": 18, "نوزده": 19
+    }
+    tens = {
+        "بیست": 20, "سی": 30, "چهل": 40, "پنجاه": 50, "شصت": 60, "هفتاد": 70, "هشتاد": 80, "نود": 90
+    }
+    hundreds = {
+        "یکصد": 100, "صد": 100, "دویست": 200, "سیصد": 300, "چهارصد": 400, "پانصد": 500,
+        "ششصد": 600, "هفتصد": 700, "هشتصد": 800, "نهصد": 900
+    }
+    scales = {
+        "هزار": 1000,
+        "میلیون": 1000000,
+        "میلیارد": 1000000000,
+        "تریلیون": 1000000000000,
+        "کوآدریلیون": 1000000000000000,
+        "کوئینتیلیون": 1000000000000000000,
+        "سکستیلیون": 1000000000000000000000,
+        "سپتیلیون": 1000000000000000000000000,
+    }
+
+    raw_tokens = [t.strip() for t in clean_text.split(" ") if t.strip()]
+    tokens = []
+    for token in raw_tokens:
+        if token == "و":
+            continue
+        tokens.append(token)
+
+    total = 0
+    current_group = 0
+    is_neg = False
+
+    if tokens and tokens[0] == "منفی":
+        is_neg = True
+        tokens.pop(0)
+
+    for token in tokens:
+        if token in ones:
+            current_group += ones[token]
+        elif token in teens:
+            current_group += teens[token]
+        elif token in tens:
+            current_group += tens[token]
+        elif token in hundreds:
+            current_group += hundreds[token]
+        elif token in scales:
+            scale = scales[token]
+            if current_group == 0:
+                current_group = 1
+            total += current_group * scale
+            current_group = 0
+        else:
+            try:
+                from parsikit.number import persian_to_english
+                num = int(persian_to_english(token))
+                current_group += num
+            except ValueError:
+                continue
+
+    total += current_group
+    return -total if is_neg else total

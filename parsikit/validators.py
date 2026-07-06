@@ -4,11 +4,36 @@ parsikit.validators
 Identity, banking, and telephone format validations for Iranian standards.
 """
 
+from __future__ import annotations
+from typing import TypedDict, Literal
 import re
 
 _TO_ENGLISH = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
 
-_CARD_BIN_TO_BANK = {
+
+class BankDetails(TypedDict):
+    name: str
+    code: str
+
+
+class BillDetails(TypedDict):
+    is_valid: bool
+    amount_rial: int
+    amount_toman: int
+    type: str
+    type_code: str
+
+
+class PlateDetails(TypedDict):
+    part1: str
+    letter: str
+    part2: str
+    province_code: str
+    province: str
+    category: str
+
+
+_CARD_BIN_TO_BANK: dict[str, BankDetails] = {
     "603799": {"name": "بانک ملی ایران", "code": "melli"},
     "589210": {"name": "بانک سپه", "code": "sepah"},
     "627648": {"name": "بانک توسعه صادرات ایران", "code": "tose-saderat"},
@@ -44,7 +69,7 @@ _CARD_BIN_TO_BANK = {
     "606256": {"name": "مؤسسه اعتباری ملل", "code": "melal"},
 }
 
-_SHEBA_CODE_TO_BANK = {
+_SHEBA_CODE_TO_BANK: dict[str, BankDetails] = {
     "010": {"name": "بانک مرکزی جمهوری اسلامی ایران", "code": "central-bank"},
     "011": {"name": "بانک صنعت و معدن", "code": "sanat-o-madan"},
     "012": {"name": "بانک ملت", "code": "mellat"},
@@ -140,9 +165,48 @@ _PLATE_CATEGORIES = {
     "S": "سرویس سفارتخانه",
 }
 
+_NATIONAL_CODE_PREFIXES = {
+    "001": ("تهران", "تهران مرکزی"), "002": ("تهران", "تهران مرکزی"), "003": ("تهران", "تهران مرکزی"), "004": ("تهران", "تهران مرکزی"), "005": ("تهران", "تهران مرکزی"), "006": ("تهران", "تهران مرکزی"), "007": ("تهران", "تهران مرکزی"), "008": ("تهران", "تهران مرکزی"), "011": ("تهران", "تهران"), "015": ("تهران", "تهران"), "020": ("تهران", "تهران"), "025": ("تهران", "تهران"), "044": ("تهران", "تهران"), "045": ("تهران", "تهران"), "160": ("تهران", "تهران"), "161": ("تهران", "اسلامشهر"), "162": ("تهران", "پاكدشت"), "163": ("تهران", "دماوند"), "164": ("تهران", "رباط كريم"), "165": ("تهران", "ری"), "166": ("تهران", "شهریار"), "167": ("تهران", "شمیرانات"), "168": ("تهران", "فیروزکوه"), "169": ("تهران", "ورامین"),
+    "031": ("البرز", "کرج"), "032": ("البرز", "کرج"), "400": ("البرز", "کرج"), "401": ("البرز", "کرج"), "402": ("البرز", "فردیس"), "403": ("البرز", "هشتگرد"), "405": ("البرز", "نظرآباد"), "407": ("البرز", "اشتهارد"),
+    "113": ("اصفهان", "اردستان"), "114": ("اصفهان", "آران و بیدگل"), "115": ("اصفهان", "نایین"), "116": ("اصفهان", "نطنز"), "117": ("اصفهان", "خمینی شهر"), "118": ("اصفهان", "خوانسار"), "119": ("اصفهان", "دهاقان"), "120": ("اصفهان", "سمیرم"), "121": ("اصفهان", "شاهین شهر"), "122": ("اصفهان", "شهرضا"), "123": ("اصفهان", "فریدن"), "124": ("اصفهان", "فریدونشهر"), "125": ("اصفهان", "فلاورجان"), "126": ("اصفهان", "گلپایگان"), "127": ("اصفهان", "اصفهان"), "128": ("اصفهان", "اصفهان"), "129": ("اصفهان", "اصفهان"), "130": ("اصفهان", "کاشان"), "131": ("اصفهان", "خوانسار"), "132": ("اصفهان", "مبارکه"), "133": ("اصفهان", "نجف آباد"), "134": ("اصفهان", "لنجان"), "135": ("اصفهان", "شاهین شهر"),
+    "136": ("آذربایجان شرقی", "تبریز"), "137": ("آذربایجان شرقی", "تبریز"), "138": ("آذربایجان شرقی", "تبریز"), "139": ("آذربایجان شرقی", "آذرشهر"), "140": ("آذربایجان شرقی", "اسکو"), "141": ("آذربایجان شرقی", "اهر"), "142": ("آذربایجان شرقی", "بستان آباد"), "143": ("آذربایجان شرقی", "بناب"), "144": ("آذربایجان شرقی", "جلفا"), "149": ("آذربایجان شرقی", "سراب"), "150": ("آذربایجان شرقی", "شبستر"), "152": ("آذربایجان شرقی", "عجب شیر"), "153": ("آذربایجان شرقی", "مراغه"), "154": ("آذربایجان شرقی", "مرند"), "155": ("آذربایجان شرقی", "میانه"), "505": ("آذربایجان شرقی", "ملکان"), "506": ("آذربایجان شرقی", "هریس"), "507": ("آذربایجان شرقی", "هشترود"),
+    "274": ("آذربایجان غربی", "ارومیه"), "275": ("آذربایجان غربی", "ارومیه"), "280": ("آذربایجان غربی", "خوی"), "281": ("آذربایجان غربی", "سلماس"), "282": ("آذربایجان غربی", "ماکو"), "283": ("آذربایجان غربی", "نقده"), "284": ("آذربایجان غربی", "پیرانشهر"), "285": ("آذربایجان غربی", "مهاباد"), "286": ("آذربایجان غربی", "بوکان"), "287": ("آذربایجان غربی", "میاندوآب"), "288": ("آذربایجان غربی", "تکاب"), "289": ("آذربایجان غربی", "شاهین دژ"), "290": ("آذربایجان غربی", "سردشت"), "291": ("آذربایجان غربی", "پلدشت"), "292": ("آذربایجان غربی", "چایپاره"), "293": ("آذربایجان غربی", "شوط"),
+    "443": ("یزد", "یزد"), "444": ("یزد", "یزد"), "445": ("یزد", "ابرکوه"), "446": ("یزد", "اردکان"), "447": ("یزد", "بافق"), "448": ("یزد", "تفت"), "551": ("یزد", "مهریز"), "552": ("یزد", "میبد"), "553": ("یزد", "صدوق"),
+    "228": ("فارس", "شیراز"), "229": ("فارس", "شیراز"), "230": ("فارس", "شیراز"), "236": ("فارس", "آباده"), "237": ("فارس", "مرودشت"), "238": ("فارس", "لارستان"), "239": ("فارس", "جهرم"), "240": ("فارس", "فساء"), "241": ("فارس", "کازرون"), "242": ("فارس", "فیروزآباد"), "243": ("فارس", "داراب"), "244": ("فارس", "نی ریز"), "245": ("فارس", "بوانات"), "246": ("فارس", "خرامه"), "247": ("فارس", "اقلید"), "248": ("فارس", "ممسنی"), "249": ("فارس", "سپیدان"), "250": ("فارس", "لامرد"), "251": ("فارس", "استهبان"), "252": ("فارس", "قیر و کارزین"), "253": ("فارس", "زرین دشت"), "254": ("فارس", "مهر"), "255": ("فارس", "پاسارگاد"), "256": ("فارس", "ارسنجان"),
+    "092": ("خراسان رضوی", "مشهد"), "093": ("خراسان رضوی", "مشهد"), "094": ("خراسان رضوی", "مشهد"), "095": ("خراسان رضوی", "تربت حیدریه"), "096": ("خراسان رضوی", "سبزوار"), "097": ("خراسان رضوی", "نیشابور"), "098": ("خراسان رضوی", "قوچان"), "105": ("خراسان رضوی", "درگز"), "106": ("خراسان رضوی", "گناباد"), "107": ("خراسان رضوی", "کاشمر"), "108": ("خراسان رضوی", "تربت جام"),
+    "205": ("مازندران", "آمل"), "206": ("مازندران", "بابل"), "208": ("مازندران", "بهشهر"), "209": ("مازندران", "تنکابن"), "211": ("مازندران", "جویبار"), "212": ("مازندران", "چالوس"), "213": ("مازندران", "رامسر"), "214": ("مازندران", "ساری"), "215": ("مازندران", "ساری"), "216": ("مازندران", "قائم شهر"), "217": ("مازندران", "محمودآباد"), "218": ("مازندران", "نکا"), "219": ("مازندران", "نور"), "220": ("مازندران", "نوشهر"), "221": ("مازندران", "بابلسر"), "222": ("مازندران", "سوادکوه"),
+    "258": ("گیلان", "آستارا"), "259": ("گیلان", "آستانه اشرفیه"), "260": ("گیلان", "بندر انزلی"), "261": ("گیلان", "رشت"), "262": ("گیلان", "رشت"), "263": ("گیلان", "رودبار"), "264": ("گیلان", "رودسر"), "265": ("گیلان", "صومعه سرا"), "266": ("گیلان", "طوالش"), "267": ("گیلان", "فومن"), "268": ("گیلان", "لاهیجان"), "269": ("گیلان", "لنگرود"), "271": ("گیلان", "رضوانشهر"), "272": ("گیلان", "ماسال"), "273": ("گیلان", "شفت"),
+    "174": ("خوزستان", "اهواز"), "175": ("خوزستان", "اهواز"), "181": ("خوزستان", "آبادان"), "182": ("خوزستان", "خرمشهر"), "183": ("خوزستان", "دزفول"), "184": ("خوزستان", "اندیمشک"), "185": ("خوزستان", "بهبهان"), "186": ("خوزستان", "ایذه"), "187": ("خوزستان", "شوشتر"), "188": ("خوزستان", "مسجد سلیمان"), "189": ("خوزستان", "رامهرمز"), "190": ("خوزستان", "دشت آزادگان"), "191": ("خوزستان", "ماهشهر"), "192": ("خوزستان", "شادگان"), "193": ("خوزستان", "شوش"), "194": ("خوزستان", "باغ ملک"), "195": ("خوزستان", "امیدیه"), "196": ("خوزستان", "لالی"), "197": ("خوزستان", "هندیجان"),
+    "324": ("کرمانشاه", "کرمانشاه"), "325": ("کرمانشاه", "کرمانشاه"), "330": ("کرمانشاه", "اسلام آباد غرب"), "331": ("کرمانشاه", "پاوه"), "332": ("کرمانشاه", "سنقر"), "333": ("کرمانشاه", "سرپل ذهاب"), "334": ("کرمانشاه", "کنگاور"), "335": ("کرمانشاه", "جوانرود"), "336": ("کرمانشاه", "قصر شیرین"), "337": ("کرمانشاه", "گیلانغرب"), "338": ("کرمانشاه", "هرسین"), "339": ("کرمانشاه", "صحنه"),
+    "406": ("لرستان", "خرم آباد"), "407": ("لرستان", "خرم آباد"), "412": ("لرستان", "بروجرد"), "413": ("لرستان", "الیگودرز"), "416": ("لرستان", "دورود"), "417": ("لرستان", "کوهدشت"), "418": ("لرستان", "دلفان"), "419": ("لرستان", "سلسله"), "420": ("لرستان", "پلدختر"), "421": ("لرستان", "ازنا"),
+    "298": ("کرمان", "کرمان"), "299": ("کرمان", "کرمان"), "301": ("کرمان", "رفسنجان"), "302": ("کرمان", "سیرجان"), "303": ("کرمان", "بفت"), "304": ("کرمان", "بم"), "305": ("کرمان", "جیرفت"), "306": ("کرمان", "شهربابک"), "307": ("کرمان", "زرند"), "308": ("کرمان", "کهنوج"), "309": ("کرمان", "بافت"), "310": ("کرمان", "بردسیر"), "311": ("کرمان", "راور"), "312": ("کرمان", "منوجان"), "313": ("کرمان", "عنبرآباد"), "314": ("کرمان", "قلعه گنج"), "315": ("کرمان", "رودبار جنوب"),
+    "386": ("همدان", "همدان"), "387": ("همدان", "همدان"), "392": ("همدان", "ملایر"), "393": ("همدان", "نهاوند"), "394": ("همدان", "تویسرکان"), "395": ("همدان", "کبودرآهنگ"), "396": ("همدان", "رزن"), "397": ("همدان", "اسدآباد"), "398": ("همدان", "بهار"), "399": ("همدان", "فامنین"),
+    "037": ("قم", "قم"), "038": ("قم", "قم"),
+    "431": ("قزوین", "قزوین"), "432": ("قزوین", "قزوین"), "509": ("قزوین", "تاکستان"), "538": ("قزوین", "بوئین زهرا"), "539": ("قزوین", "آبیک"),
+    "427": ("زنجان", "زنجان"), "428": ("زنجان", "زنجان"), "429": ("زنجان", "ابهر"), "440": ("زنجان", "خدابنده"), "518": ("زنجان", "طارم"),
+    "456": ("سمنان", "سمنان"), "457": ("سمنان", "شاهرود"), "458": ("سمنان", "دامغان"), "459": ("سمنان", "گرمسار"), "460": ("سمنان", "مهدی شهر"),
+    "052": ("مرکزی", "اراک"), "053": ("مرکزی", "اراک"), "055": ("مرکزی", "ساوه"), "056": ("مرکزی", "خمین"), "057": ("مرکزی", "محلات"), "058": ("مرکزی", "دلیجان"), "059": ("مرکزی", "تفرش"), "060": ("مرکزی", "آشتیان"), "061": ("مرکزی", "شازند"), "062": ("مرکزی", "زرندیه"),
+    "449": ("ایلام", "ایلام"), "450": ("ایلام", "ایلام"), "533": ("ایلام", "مهران"), "534": ("ایلام", "دهلران"),
+    "461": ("چهارمحال و بختیاری", "شهرکرد"), "462": ("چهارمحال و بختیاری", "شهرکرد"), "465": ("چهارمحال و بختیاری", "بروجن"), "466": ("چهارمحال و بختیاری", "لردگان"), "467": ("چهارمحال و بختیاری", "فارسان"), "468": ("چهارمحال و بختیاری", "اردل"),
+    "424": ("کهگیلویه و بویراحمد", "یاسوج"), "425": ("کهگیلویه و بویراحمد", "دوگنبدان"), "426": ("کهگیلویه و بویراحمد", "دهدشت"), "555": ("کهگیلویه و بویراحمد", "بهمئی"),
+    "081": ("خراسان جنوبی", "بیرجند"), "082": ("خراسان جنوبی", "بیرجند"), "083": ("خراسان جنوبی", "فردوس"), "084": ("خراسان جنوبی", "طبس"), "562": ("خراسان جنوبی", "قائنات"), "563": ("خراسان جنوبی", "نهبندان"), "564": ("خراسان جنوبی", "سرایان"),
+    "063": ("خراسان شمالی", "بجنورد"), "064": ("خراسان شمالی", "بجنورد"), "067": ("خراسان شمالی", "شیروان"), "068": ("خراسان شمالی", "اسفراین"), "074": ("خراسان شمالی", "جاجرم"), "075": ("خراسان شمالی", "مانه و سملقان"), "076": ("خراسان شمالی", "جاجرم"), "590": ("خراسان شمالی", "فاروج")
+}
+
+_LANDLINE_AREA_CODES = {
+    "11": "مازندران", "13": "گیلان", "17": "گلستان",
+    "21": "تهران", "23": "سمنان", "24": "زنجان", "25": "قم", "26": "البرز", "28": "قزوین",
+    "31": "اصفهان", "34": "کرمان", "35": "یزد", "38": "چهارمحال و بختیاری",
+    "41": "آذربایجان شرقی", "44": "آذربایجان غربی", "45": "اردبیل",
+    "51": "خراسان رضوی", "54": "سیستان و بلوچستان", "56": "خراسان جنوبی", "58": "خراسان شمالی",
+    "61": "خوزستان", "66": "لرستان",
+    "71": "فارس", "74": "کهگیلویه و بویراحمد", "76": "هرمزگان", "77": "بوشهر",
+    "81": "همدان", "83": "کرمانشاه", "84": "ایلام", "86": "مرکزی", "87": "کردستان"
+}
+
 
 def is_valid_national_code(code: str) -> bool:
-    """Check if the provided code is a valid 10-digit Iranian National Code (auto-pads omitted leading zeros)."""
+    """Check if the provided code is a valid 10-digit Iranian National Code."""
     if not code:
         return False
 
@@ -153,7 +217,6 @@ def is_valid_national_code(code: str) -> bool:
     elif len(clean) > 10:
         return False
 
-    # Block patterns with repeating single digits (e.g., 1111111111)
     if len(set(clean)) == 1:
         return False
 
@@ -181,6 +244,18 @@ def format_national_code(code: str) -> str:
     return f"{clean[:3]}-{clean[3:9]}-{clean[9]}"
 
 
+def detect_national_code_location(code: str) -> dict[str, str] | None:
+    """Detect the province and city of issue of an Iranian national code."""
+    clean = "".join(c for c in str(code).translate(_TO_ENGLISH) if c.isdigit()).zfill(10)
+    if len(clean) != 10:
+        return None
+    prefix = clean[:3]
+    location = _NATIONAL_CODE_PREFIXES.get(prefix)
+    if location:
+        return {"province": location[0], "city": location[1]}
+    return None
+
+
 def is_valid_mobile(phone: str) -> bool:
     """Validate Iranian mobile numbers (supports +98, 0098, 98, 0 and bare prefixes)."""
     if not phone:
@@ -190,8 +265,11 @@ def is_valid_mobile(phone: str) -> bool:
     return bool(pattern.match(clean))
 
 
-def normalize_mobile(phone: str, prefix: str = "0") -> str:
-    """Standardize mobile formats to specified layout prefixes (e.g., '0', '+98', '98', '0098', or empty bare '')."""
+def normalize_mobile(
+    phone: str, 
+    prefix: Literal["0", "+98", "98", "0098", ""] = "0"
+) -> str:
+    """Standardize mobile formats to specified layout prefixes."""
     if not is_valid_mobile(phone):
         raise ValueError("Invalid Iranian mobile number layout.")
         
@@ -210,6 +288,49 @@ def normalize_mobile(phone: str, prefix: str = "0") -> str:
         return base
     
     raise ValueError("Unsupported prefix format. Choose '0', '+98', '98', '0098', or ''.")
+
+
+def is_valid_landline(phone: str) -> bool:
+    """Validate Iranian fixed-line (landline) phone numbers (e.g., 02188888888, +982188888888)."""
+    if not phone:
+        return False
+    clean = "".join(c for c in str(phone).translate(_TO_ENGLISH) if c.isdigit() or c == "+")
+    pattern = re.compile(r"^(?:\+98|0098|98|0)?[1-8]\d{9}$")
+    return bool(pattern.match(clean))
+
+
+def normalize_landline(
+    phone: str, 
+    prefix: Literal["0", "+98", "98", "0098", ""] = "0"
+) -> str:
+    """Normalize a fixed landline number to a standardized prefix form."""
+    if not is_valid_landline(phone):
+        raise ValueError("Invalid Iranian fixed landline phone number.")
+    clean = "".join(c for c in str(phone).translate(_TO_ENGLISH) if c.isdigit())
+    base = clean[-10:]
+    
+    if prefix == "0":
+        return f"0{base}"
+    elif prefix == "+98":
+        return f"+98{base}"
+    elif prefix == "98":
+        return f"98{base}"
+    elif prefix == "0098":
+        return f"0098{base}"
+    elif prefix == "":
+        return base
+    
+    raise ValueError("Unsupported prefix. Choose '0', '+98', '98', '0098', or ''.")
+
+
+def detect_landline_province(phone: str) -> str | None:
+    """Detect the province of an Iranian landline phone number based on its area code."""
+    try:
+        norm = normalize_landline(phone, prefix="")
+        area_code = norm[:2]
+        return _LANDLINE_AREA_CODES.get(area_code)
+    except ValueError:
+        return None
 
 
 def is_valid_card_number(card: str) -> bool:
@@ -240,11 +361,10 @@ def format_card_number(card: str, separator: str = "-") -> str:
 
 
 def is_valid_sheba(sheba: str) -> bool:
-    """Validate Iranian Sheba (IBAN) format (starts with IR followed by 24 digits, handles all custom separators)."""
+    """Validate Iranian Sheba (IBAN) format (starts with IR followed by 24 digits)."""
     if not sheba:
         return False
     
-    # Extract only alphanumeric characters to make it immune to various formatting symbols
     clean = "".join(c for c in str(sheba).translate(_TO_ENGLISH).upper() if c.isdigit() or ('A' <= c <= 'Z'))
 
     if len(clean) == 24 and clean.isdigit():
@@ -253,10 +373,8 @@ def is_valid_sheba(sheba: str) -> bool:
     if len(clean) != 26 or not clean.startswith("IR") or not clean[2:].isdigit():
         return False
 
-    # Move 'IRXX' to end: 'IRXXYYYY...' -> 'YYYY...IRXX'
     rearranged = clean[4:] + clean[:4]
     
-    # Translate letters to numbers (I -> 18, R -> 27)
     num_str = ""
     for char in rearranged:
         if char.isalpha():
@@ -270,7 +388,10 @@ def is_valid_sheba(sheba: str) -> bool:
         return False
 
 
-def format_sheba(sheba: str, format_type: str = "spaced") -> str:
+def format_sheba(
+    sheba: str, 
+    format_type: Literal["spaced", "clean"] = "spaced"
+) -> str:
     """Format Sheba values cleanly or into four-character readable blocks."""
     clean = "".join(c for c in str(sheba).translate(_TO_ENGLISH).upper() if c.isdigit() or ('A' <= c <= 'Z'))
 
@@ -283,12 +404,24 @@ def format_sheba(sheba: str, format_type: str = "spaced") -> str:
     if format_type == "clean":
         return clean
 
-    # spaced chunk format
     return " ".join([clean[i:i+4] for i in range(0, 26, 4)])
 
 
+def extract_account_number_from_sheba(sheba: str) -> str:
+    """Extract the embedded bank account number from a valid Iranian Sheba (IBAN)."""
+    if not is_valid_sheba(sheba):
+        raise ValueError("Invalid Sheba structure.")
+    clean = "".join(c for c in str(sheba).translate(_TO_ENGLISH).upper() if c.isalnum())
+    if clean.startswith("IR"):
+        clean = clean[2:]
+    
+    # The last 18 digits represent the account number
+    account_part = clean[-18:]
+    return account_part.lstrip("0")
+
+
 def is_valid_corporate_id(code: str) -> bool:
-    """Validate 11-digit Iranian Legal Entity National ID (شناسه ملی اشخاص حقوقی)."""
+    """Validate 11-digit Iranian Legal Entity National ID."""
     if not code:
         return False
     
@@ -297,7 +430,6 @@ def is_valid_corporate_id(code: str) -> bool:
     if len(clean) != 11:
         return False
         
-    # Exclude repeating single digit IDs (e.g., 11111111111)
     if len(set(clean)) == 1:
         return False
         
@@ -353,7 +485,7 @@ def detect_mobile_operator(phone: str) -> str | None:
     return None
 
 
-def detect_bank_from_card(card: str) -> dict | None:
+def detect_bank_from_card(card: str) -> BankDetails | None:
     """Detect the bank details from a 16-digit card number or its 6-digit prefix (BIN)."""
     if not card:
         return None
@@ -363,7 +495,7 @@ def detect_bank_from_card(card: str) -> dict | None:
     return _CARD_BIN_TO_BANK.get(clean[:6])
 
 
-def detect_bank_from_sheba(sheba: str) -> dict | None:
+def detect_bank_from_sheba(sheba: str) -> BankDetails | None:
     """Detect the bank details from a Sheba (IBAN) code or its prefix."""
     if not sheba:
         return None
@@ -419,15 +551,12 @@ def is_valid_bill_and_payment(bill_id: str, pay_id: str) -> bool:
     if len(b) < 6 or len(p) < 6:
         return False
         
-    # Check 1: Bill ID check digit
     if _calculate_mod11_bill_checksum(b[:-1]) != int(b[-1]):
         return False
         
-    # Check 2: Payment ID first check digit (Control 1)
     if _calculate_mod11_bill_checksum(p[:-2]) != int(p[-2]):
         return False
         
-    # Check 3: Combined check digit (Control 2)
     combined = b.lstrip('0') + p[:-1].lstrip('0')
     if _calculate_mod11_bill_checksum(combined) != int(p[-1]):
         return False
@@ -435,7 +564,7 @@ def is_valid_bill_and_payment(bill_id: str, pay_id: str) -> bool:
     return True
 
 
-def extract_bill_details(bill_id: str, pay_id: str) -> dict | None:
+def extract_bill_details(bill_id: str, pay_id: str) -> BillDetails | None:
     """Validate and extract payment details and type from Iranian Bill & Payment IDs."""
     _TO_ENGLISH_LOCAL = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
     b = "".join(c for c in str(bill_id).translate(_TO_ENGLISH_LOCAL) if c.isdigit())
@@ -444,7 +573,7 @@ def extract_bill_details(bill_id: str, pay_id: str) -> dict | None:
     if len(b) < 6 or len(p) < 6:
         return None
         
-    is_valid = is_valid_bill_and_payment(b, p)
+    is_valid_flag = is_valid_bill_and_payment(b, p)
     
     type_code = b[-2]
     bill_type = _BILL_TYPES.get(type_code, "سایر قبوض")
@@ -459,7 +588,7 @@ def extract_bill_details(bill_id: str, pay_id: str) -> dict | None:
         amount_toman = 0
         
     return {
-        "is_valid": is_valid,
+        "is_valid": is_valid_flag,
         "amount_rial": amount_rial,
         "amount_toman": amount_toman,
         "type": bill_type,
@@ -467,18 +596,8 @@ def extract_bill_details(bill_id: str, pay_id: str) -> dict | None:
     }
 
 
-def parse_plate(plate_str: str) -> dict | None:
-    """Parse an Iranian National Vehicle Plate (پلاک ملی) and extract details.
-    
-    Returns a dict with:
-        - part1 (str): First 2 digits (e.g., "۱۲")
-        - letter (str): Middle letter/character (e.g., "ب", "الف")
-        - part2 (str): 3 digits (e.g., "۳۴۵")
-        - province_code (str): Province numeric code (e.g., "۶۸")
-        - province (str): Issuing Persian province name (e.g., "البرز")
-        - category (str): Car type category (e.g., "شخصی", "تاکسی")
-    Or None if the plate structure is invalid.
-    """
+def parse_plate(plate_str: str) -> PlateDetails | None:
+    """Parse an Iranian National Vehicle Plate (پلاک ملی) and extract details."""
     _TO_ENGLISH_LOCAL = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
     s = str(plate_str).translate(_TO_ENGLISH_LOCAL).strip()
     s = s.replace("ایران", "").replace("-", "").replace(" ", "")
@@ -512,7 +631,10 @@ def is_valid_plate(plate_str: str) -> bool:
     return parse_plate(plate_str) is not None
 
 
-def format_plate(plate_str: str, format_type: str = "readable") -> str:
+def format_plate(
+    plate_str: str, 
+    format_type: Literal["readable", "clean"] = "readable"
+) -> str:
     """Format an Iranian Vehicle Plate into a standard readable or clean layout."""
     parsed = parse_plate(plate_str)
     if not parsed:
