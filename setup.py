@@ -5,7 +5,7 @@ README = Path(__file__).parent / "README.md"
 
 setup(
     name="parsikit",
-    version="3.2.0",
+    version="3.3.0",
     author="Ali Kamrani",
     author_email="kamrani.exe@gmail.com",
     description="A production-grade pure Python library for Persian data infrastructure.",

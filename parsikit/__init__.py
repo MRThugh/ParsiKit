@@ -16,7 +16,8 @@ from parsikit.models import (
 from parsikit.text import (
     standardize_persian, strip_diacritics, is_persian, correct_keyboard_layout,
     persian_sort_key, persian_sorted, beautify_persian_spacing, extract_mobiles,
-    extract_national_codes, words_to_number
+    extract_national_codes, words_to_number, slugify, clean_text, normalize_whitespace,
+    convert_numbers, mask_mobile, mask_card, mask_national_code, mask_email # Added mask_* functions
 )
 from parsikit.number import english_to_persian, persian_to_english, number_to_words
 from parsikit.currency import (
@@ -31,7 +32,7 @@ from parsikit.validators import (
     is_valid_corporate_id, detect_mobile_operator, detect_bank_from_card,
     detect_bank_from_sheba, is_valid_postal_code, format_postal_code,
     is_valid_bill_and_payment, extract_bill_details, is_valid_plate, parse_plate,
-    format_plate, BankDetails, BillDetails, PlateDetails
+    format_plate, detect, BankDetails, BillDetails, PlateDetails
 )
 from parsikit.datetime import (
     gregorian_to_jalali, jalali_to_gregorian, format_jalali, get_jalali_month_name,
@@ -42,7 +43,13 @@ from parsikit.reshaper import (
 )
 from parsikit.gui import bind_persian_input
 
-__version__ = "3.2.0"
+# Import dev utilities
+from .dev import (
+    pretty_print, inspect_text, debug_text, validate_batch, persian_repr, 
+    setup_logging, pformat, persian_fstring
+)
+
+__version__ = "3.3.0"
 __all__ = [
     # global config & exceptions
     "config",
@@ -77,6 +84,14 @@ __all__ = [
     "extract_mobiles",
     "extract_national_codes",
     "words_to_number",
+    "slugify",
+    "clean_text",
+    "normalize_whitespace",
+    "convert_numbers",
+    "mask_mobile",
+    "mask_card",
+    "mask_national_code",
+    "mask_email",
     
     # number
     "english_to_persian",
@@ -116,6 +131,7 @@ __all__ = [
     "is_valid_plate",
     "parse_plate",
     "format_plate",
+    "detect",
     "BankDetails",
     "BillDetails",
     "PlateDetails",
@@ -134,4 +150,14 @@ __all__ = [
     
     # gui
     "bind_persian_input",
+
+    # dev utilities
+    "pretty_print",
+    "inspect_text",
+    "debug_text",
+    "validate_batch",
+    "persian_repr",
+    "setup_logging",
+    "pformat",
+    "persian_fstring",
 ]
