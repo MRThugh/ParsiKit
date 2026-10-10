@@ -11,9 +11,10 @@
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Author](https://img.shields.io/badge/author-Ali%20Kamrani-purple.svg)](https://github.com/MRThugh)
-[![Version](https://img.shields.io/badge/version-3.3.0-blue.svg)](https://github.com/MRThugh/ParsiKit)
-[![Persian](https://img.shields.io/badge/lang-PERSIAN-green)](README-fa.md)
-[![English](https://img.shields.io/badge/lang-English-blue)](README.md)
+[![Version](https://img.shields.io/badge/version-3.3.1-blue.svg)](https://github.com/MRThugh/ParsiKit)
+[![مستندات فارسی](https://img.shields.io/badge/docs-فارسی-green)](docs/fa/index.md)
+[![English Docs](https://img.shields.io/badge/docs-English-blue)](docs/en/index.md)
+[![English README](https://img.shields.io/badge/lang-English-blue)](README.md)
 
 **یک زیرساخت کدنویسی کامل، سریع و کاملاً پایتونی برای پردازش متن فارسی، اعتبارسنجی داده‌ها، محاسبات مالی، تقویم جلالی، عیب‌یابی متون فارسی و حفظ امنیت داده‌های حساس.**
 

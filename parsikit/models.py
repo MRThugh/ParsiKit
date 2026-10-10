@@ -18,7 +18,8 @@ from parsikit.validators import (
 )
 from parsikit.text import (
     standardize_persian, beautify_persian_spacing, strip_diacritics,
-    correct_keyboard_layout, extract_mobiles, extract_national_codes, words_to_number
+    correct_keyboard_layout, extract_mobiles, extract_national_codes, words_to_number,
+    mask_mobile, mask_card, mask_national_code
 )
 from parsikit.exceptions import (
     InvalidNationalCodeError, InvalidMobileError, InvalidCardNumberError,
@@ -134,7 +135,8 @@ class NationalCode(StringLikeMixin, PydanticValidationMixin):
         
         self._is_valid = is_valid_national_code(self._clean)
         if strict and not self._is_valid:
-            raise InvalidNationalCodeError(f"The national code '{self._raw}' is invalid.")
+            safe_code = mask_national_code(self._raw) if len(self._clean) >= 6 else self._raw
+            raise InvalidNationalCodeError(f"The national code '{safe_code}' is invalid.")
 
     @property
     def raw(self) -> str:
@@ -154,6 +156,11 @@ class NationalCode(StringLikeMixin, PydanticValidationMixin):
         return format_national_code(self._clean)
 
     @property
+    def masked(self) -> str:
+        """Masked XXX-****XX-X layout."""
+        return mask_national_code(self._clean)
+
+    @property
     def location(self) -> dict[str, str] | None:
         """Retrieve the issuing province and city/county of the national code."""
         return detect_national_code_location(self._clean)
@@ -165,6 +172,7 @@ class NationalCode(StringLikeMixin, PydanticValidationMixin):
             "clean": self._clean,
             "is_valid": self._is_valid,
             "formatted": self.formatted,
+            "masked": self.masked,
             "location": self.location
         }
 
@@ -211,6 +219,11 @@ class MobileNumber(StringLikeMixin, PydanticValidationMixin):
         """Return format like +989123456789."""
         return f"+98{self._base}"
 
+    @property
+    def masked(self) -> str:
+        """Masked 0912***6789 format."""
+        return mask_mobile(self.to_national())
+
     def to_dict(self) -> dict[str, Any]:
         """Export all mobile properties into a standardized dictionary."""
         return {
@@ -218,6 +231,7 @@ class MobileNumber(StringLikeMixin, PydanticValidationMixin):
             "is_valid": self._is_valid,
             "national": self.to_national(),
             "international": self.to_international(),
+            "masked": self.masked,
             "operator": self.operator
         }
 
@@ -299,7 +313,8 @@ class BankCard(StringLikeMixin, PydanticValidationMixin):
         
         self._is_valid = is_valid_card_number(self._clean)
         if strict and not self._is_valid:
-            raise InvalidCardNumberError(f"The bank card number '{self._raw}' is invalid.")
+            safe_card = mask_card(self._raw) if len(self._clean) >= 6 else self._raw
+            raise InvalidCardNumberError(f"The bank card number '{safe_card}' is invalid.")
 
     @property
     def raw(self) -> str:
@@ -319,6 +334,11 @@ class BankCard(StringLikeMixin, PydanticValidationMixin):
         return format_card_number(self._clean)
 
     @property
+    def masked(self) -> str:
+        """Masked 6037-99**-****-4455 layout."""
+        return mask_card(self._clean)
+
+    @property
     def bank(self) -> BankDetails | None:
         """Retrieve the bank details of this card."""
         return detect_bank_from_card(self._clean)
@@ -330,6 +350,7 @@ class BankCard(StringLikeMixin, PydanticValidationMixin):
             "clean": self._clean,
             "is_valid": self._is_valid,
             "formatted": self.formatted,
+            "masked": self.masked,
             "bank": self.bank
         }
 

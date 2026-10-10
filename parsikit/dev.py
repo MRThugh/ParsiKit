@@ -70,7 +70,7 @@ class PersianFormatter(string.Formatter):
             # Fallback to python standard format
             res = format(value, format_spec)
             if to_persian_digits:
-                res = english_to_persian(res)
+                res = english_to_persian(res).replace(",", "،")
             return res
 
         gd = match.groupdict()
@@ -79,7 +79,7 @@ class PersianFormatter(string.Formatter):
         if not width_str:
             res = format(value, format_spec)
             if to_persian_digits:
-                res = english_to_persian(res)
+                res = english_to_persian(res).replace(",", "،")
             return res
 
         # Alignments & custom sizes parameters
@@ -105,7 +105,7 @@ class PersianFormatter(string.Formatter):
         base_str = format(value, clean_spec)
 
         if to_persian_digits:
-            base_str = english_to_persian(base_str)
+            base_str = english_to_persian(base_str).replace(",", "،")
 
         # Calculate exact visual width (omitting ZWNJs & Arabic Diacritics)
         zero_width_chars = re.compile(r"[\u200C\u064B-\u065F\u0670]")
@@ -288,6 +288,7 @@ def inspect_text(text: str) -> dict[str, Any]:
             "has_arabic_chars": False,
             "has_english_digits": False,
             "has_arabic_digits": False,
+            "has_persian_digits": False,
             "has_diacritics": False,
             "has_zwnj_issues": False,
             "has_spacing_issues": False,
@@ -305,6 +306,7 @@ def inspect_text(text: str) -> dict[str, Any]:
     # Digits validation
     has_english_digits = bool(re.search(r"[0-9]", text))
     has_arabic_digits = bool(re.search(r"[\u0660-\u0669]", text))
+    has_persian_digits = bool(re.search(r"[\u06F0-\u06F9]", text))
 
     # Diacritics detection
     has_diacritics = bool(re.search(r"[\u064B-\u065F\u0670]", text))
@@ -340,6 +342,7 @@ def inspect_text(text: str) -> dict[str, Any]:
         "has_arabic_chars": has_arabic_chars,
         "has_english_digits": has_english_digits,
         "has_arabic_digits": has_arabic_digits,
+        "has_persian_digits": has_persian_digits,
         "has_diacritics": has_diacritics,
         "has_zwnj_issues": has_zwnj_issues,
         "has_spacing_issues": has_spacing_issues,
@@ -363,7 +366,8 @@ def debug_text(text: str) -> None:
     print(colored("┌────────────────────────────────────────────────────────┐", COLOR_GRAY))
     print(colored("│ ParsiKit Text Debugger Analysis                        │", COLOR_CYAN + COLOR_BOLD))
     print(colored("├────────────────────────────────────────────────────────┤", COLOR_GRAY))
-    print(f"  Raw Text: {colored(f'\"{text}\"', COLOR_GREEN)}")
+    raw_quoted = f'"{text}"'
+    print(f"  Raw Text: {colored(raw_quoted, COLOR_GREEN)}")
     print(colored("├────────────────────────────────────────────────────────┤", COLOR_GRAY))
     print(f"  Length: {colored(str(analysis['length']), COLOR_YELLOW)} characters")
     print(f"  Word Count: {colored(str(analysis['word_count']), COLOR_YELLOW)}")

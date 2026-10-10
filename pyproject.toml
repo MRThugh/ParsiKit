@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "parsikit"
-version = "3.3.0"
+version = "3.3.1"
 description = "A production-grade pure Python library for Persian data infrastructure."
 readme = "README.md"
 authors = [
@@ -20,3 +20,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Libraries :: Python Modules"
 ]
+
+[tool.setuptools.packages.find]
+include = ["parsikit*"]
+exclude = ["tests*", "docs*", "examples*"]

@@ -94,6 +94,9 @@ def standardize_persian(text: str, *, strip_diacritics_opt: bool = False) -> str
     for pattern, replacement in _ZWNJ_PATTERNS:
         text = pattern.sub(replacement, text)
 
+    # Collapse duplicate ZWNJs
+    text = re.sub(r"\u200C{2,}", _ZWNJ, text)
+
     # Collapse redundant spaces
     text = re.sub(r" {2,}", " ", text).strip()
 
@@ -352,6 +355,7 @@ _COMMON_WORDS_PINGLISH = {
     "دانلود": "download",
     "مقاله": "maghaleh",
     "محصول": "mahsool",
+    "نسخه": "neskheh",
 }
 
 

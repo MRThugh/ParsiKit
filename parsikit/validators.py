@@ -527,7 +527,7 @@ def format_postal_code(postal_code: str) -> str:
     clean = "".join(c for c in str(postal_code).translate(_TO_ENGLISH) if c.isdigit())
     if len(clean) != 10:
         raise ValueError("Postal code must contain exactly 10 digits.")
-    return f"{clean[:3]}-{clean[3:9]}-{clean[9]}"
+    return f"{clean[:5]}-{clean[5:]}"
 
 
 def _calculate_mod11_bill_checksum(digits_str: str) -> int:

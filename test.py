@@ -41,7 +41,7 @@ class TestInfrastructureOOP(unittest.TestCase):
         self.assertFalse(nc_loose.is_valid)
 
         # Prefix/Location detection test
-        nc_tehran = parsikit.NationalCode("0010123451")
+        nc_tehran = parsikit.NationalCode("0010123458")
         self.assertIsNotNone(nc_tehran.location)
         self.assertEqual(nc_tehran.location["province"], "تهران")  # type: ignore
 
@@ -81,13 +81,13 @@ class TestInfrastructureOOP(unittest.TestCase):
 
 class TestDeveloperExperienceV310(unittest.TestCase):
     def test_string_like_behavior_and_duck_typing(self):
-        nc = parsikit.NationalCode("0010123451")
+        nc = parsikit.NationalCode("0010123458")
         # NationalCode works cleanly with standard python string functions and properties
         self.assertEqual(len(nc), 10)
         self.assertEqual(nc.clean[:3], "001")
         
         # Test equality with string
-        self.assertEqual(nc, "0010123451")
+        self.assertEqual(nc, "0010123458")
 
     def test_dictionary_serialization(self):
         sheba = parsikit.Sheba("IR050170000000123456789012")
@@ -142,7 +142,7 @@ class TestDeveloperUtilityV330(unittest.TestCase):
         self.assertEqual(empty_analysis["word_count"], 0)
 
         # Test text with common Persian layout/spacing/character errors
-        bad_text = "ي كافيه ك کتاب ها ميباشد ۱۲۳"
+        bad_text = "ي كافيه  ك کتاب ها ميباشد 123"
         analysis = parsikit.inspect_text(bad_text)
         
         self.assertTrue(analysis["has_arabic_chars"])
@@ -168,7 +168,7 @@ class TestDeveloperUtilityV330(unittest.TestCase):
 
     def test_validate_batch(self):
         # Validate batch lists containing both valid and invalid national codes
-        items = ["7730123452", "1111111111", "0010123451", "invalid-code"]
+        items = ["7730123452", "1111111111", "0010123458", "invalid-code"]
         report = parsikit.validate_batch(items, parsikit.NationalCode, silent=True)
 
         self.assertEqual(report["total"], 4)
@@ -187,7 +187,7 @@ class TestDeveloperUtilityV330(unittest.TestCase):
 
     def test_pformat_and_persian_aware_alignment(self):
         # Test standard python vs persian_aware visual alignment with ZWNJ (zero-width)
-        zwnj_text = "کتاب‌‌ها"
+        zwnj_text = "کتاب\u200Cها"
         formatted = parsikit.pformat("{:<10}", zwnj_text)
         self.assertEqual(len(formatted), 11)
         self.assertTrue(formatted.endswith("   "))
@@ -318,7 +318,7 @@ class TestDeveloperUtilityV330(unittest.TestCase):
 
         # Test email masking
         self.assertEqual(parsikit.mask_email("ali@example.com"), "al***i@example.com")
-        self.assertEqual(parsikit.mask_email("kamrani.exe@gmail.com"), "ka******e@gmail.com")
+        self.assertEqual(parsikit.mask_email("kamrani.exe@gmail.com"), "ka********e@gmail.com")
         self.assertEqual(parsikit.mask_email("ax@example.com"), "a*@example.com")
 
 

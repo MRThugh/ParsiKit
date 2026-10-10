@@ -18,7 +18,7 @@ _JALALI_MONTH_NAMES = [
 @memoize(maxsize=4096)
 def gregorian_to_jalali(gy: int, gm: int, gd: int) -> tuple[int, int, int]:
     """Convert a Gregorian date (Year, Month, Day) to Jalali (Shamsi) date."""
-    g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 335]
+    g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
     if (gy % 4 == 0 and gy % 100 != 0) or (gy % 400 == 0):
         leap = 1
     else:
@@ -124,10 +124,16 @@ def get_jalali_month_name(month: int) -> str:
 
 
 def is_jalali_leap(jy: int) -> bool:
-    """Determine if a Jalali year is a leap (Kabiseh) year (astronomical 2820-year cycle)."""
-    epbase = jy - 474 if jy > 0 else jy - 473
-    epyear = 474 + (epbase % 2820)
-    return ((epyear * 682) % 2816) < 682
+    """Determine if a Jalali year is a leap (Kabiseh) year.
+    
+    Uses the astronomical 33-year cycle algorithm consistent with `jalali_to_gregorian`.
+    A Jalali leap year contains 366 days (with 30 days in Esfand).
+    """
+    jy2 = jy - 979
+    d1 = 365 * jy2 + (jy2 // 33) * 8 + (jy2 % 33 + 3) // 4
+    jy3 = jy2 + 1
+    d2 = 365 * jy3 + (jy3 // 33) * 8 + (jy3 % 33 + 3) // 4
+    return (d2 - d1) == 366
 
 
 def humanize_relative_time(
@@ -138,6 +144,8 @@ def humanize_relative_time(
     
     E.g. "۳ دقیقه پیش", "دیروز", "۱ سال قبل", "فردا", "هم‌اکنون".
     """
+    from parsikit.number import english_to_persian
+
     if reference is None:
         reference = datetime.datetime.now()
 
@@ -155,35 +163,41 @@ def humanize_relative_time(
         return "هم‌اکنون" if is_past else "چند ثانیه بعد"
     elif abs_seconds < 60:
         val = int(abs_seconds)
+        val_fa = english_to_persian(str(val))
         suffix = "پیش" if is_past else "بعد"
-        return f"{val} ثانیه {suffix}"
+        return f"{val_fa} ثانیه {suffix}"
     elif abs_seconds < 3600:
         val = int(abs_seconds // 60)
+        val_fa = english_to_persian(str(val))
         suffix = "پیش" if is_past else "بعد"
-        return f"{val} دقیقه {suffix}"
+        return f"{val_fa} دقیقه {suffix}"
     elif abs_seconds < 86400:
         val = int(abs_seconds // 3600)
+        val_fa = english_to_persian(str(val))
         suffix = "پیش" if is_past else "بعد"
         if val == 1:
             return "۱ ساعت پیش" if is_past else "۱ ساعت بعد"
-        return f"{val} ساعت {suffix}"
+        return f"{val_fa} ساعت {suffix}"
     elif abs_seconds < 172800:
         if is_past:
             return "دیروز"
         return "فردا"
     elif abs_seconds < 2592000:
         val = int(abs_seconds // 86400)
+        val_fa = english_to_persian(str(val))
         suffix = "پیش" if is_past else "بعد"
-        return f"{val} روز {suffix}"
+        return f"{val_fa} روز {suffix}"
     elif abs_seconds < 31104000:
         val = int(abs_seconds // 2592000)
+        val_fa = english_to_persian(str(val))
         suffix = "پیش" if is_past else "بعد"
         if val == 1:
             return "۱ ماه پیش" if is_past else "۱ ماه بعد"
-        return f"{val} ماه {suffix}"
+        return f"{val_fa} ماه {suffix}"
     else:
         val = int(abs_seconds // 31104000)
+        val_fa = english_to_persian(str(val))
         suffix = "قبل" if is_past else "بعد"
         if val == 1:
             return "۱ سال قبل" if is_past else "۱ سال بعد"
-        return f"{val} سال {suffix}"
+        return f"{val_fa} سال {suffix}"
