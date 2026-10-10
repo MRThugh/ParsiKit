@@ -1,5 +1,5 @@
 """
-Comprehensive test suite for ParsiKit version 3.3.0.
+Comprehensive test suite for ParsiKit version 3.3.1.
 """
 
 import unittest

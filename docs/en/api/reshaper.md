@@ -1,0 +1,77 @@
+# Reshaper API (`parsikit.reshaper`)
+
+Lightweight, zero-dependency Persian letter connection shaper and Bidirectional (BiDi) layout reorganizer for graphic engines, image generation libraries, and games.
+
+---
+
+## Overview
+
+Most graphic engines (such as Pygame, OpenCV, Pillow without `raqm`, Matplotlib, OpenGL, and PDF generators) assume left-to-right Latin typography. When rendering Persian text without a shaping engine, letters appear disconnected, disjointed, and backwards (e.g. `س ل ا م` instead of `سلام`).
+
+`parsikit.reshaper` converts standard Persian Unicode characters into their contextual contextual presentation forms (Isolated, Initial, Medial, Final) and reorders glyphs for naive LTR renderers.
+
+---
+
+## Public Functions
+
+### `reshape_for_graphics(text: str, reverse: bool = True) -> str`
+
+Connects cursive Persian characters into appropriate presentation glyphs and manages bidirectional text blocks.
+
+#### Parameters:
+- **`text`** (`str`): The Persian or mixed Persian-Latin string to reshape.
+- **`reverse`** (`bool`, default `True`): If `True`, reverses RTL character order for graphics engines that draw from left to right. Embedded Latin words and digits are preserved in correct left-to-right order.
+
+#### Returns:
+- `str`: Shaped Unicode presentation string ready for graphic blitting.
+
+#### Supported Features:
+- Complete Persian and Arabic alphabet presentation mapping.
+- Standard **Lam-Alef ligatures** (`لا`, `لآ`, `لأ`, `لإ`) in isolated and final positions.
+- **Diacritics awareness**: ignores short vowels (فتحه، ضمه، کسره، تنوین) during letter connectivity checks.
+- **BiDi Block Preservation**: splits Latin words and numbers from Persian words so English text within a Persian sentence is not inverted.
+
+#### Usage Example:
+
+```python
+import parsikit
+
+raw_text = "سلام دنیا (نسخه 3.3.1)"
+# Shaped and reversed for Pygame or Pillow:
+ready_text = parsikit.reshape_for_graphics(raw_text)
+
+# Shaped without reversing (for engines with native BiDi but lacking font shaping):
+shaped_only = parsikit.reshape_for_graphics(raw_text, reverse=False)
+```
+
+---
+
+### `reshape_paragraph_for_graphics(text: str, max_chars_per_line: int, reverse: bool = True) -> list[str]`
+
+Automatically word-wraps a long paragraph of Persian text and reshapes each line for graphical drawing.
+
+#### Parameters:
+- **`text`** (`str`): Paragraph text to wrap and shape.
+- **`max_chars_per_line`** (`int`): Maximum character width per line.
+- **`reverse`** (`bool`, default `True`): Whether to reverse RTL blocks.
+
+#### Returns:
+- `list[str]`: A list of shaped line strings.
+
+#### Usage Example:
+
+```python
+import parsikit
+
+paragraph = "پارسی‌کیت یک کتابخانه استاندارد پایتونی برای پردازش اطلاعات فارسی، تقویم شمسی و اعتبارسنجی است."
+lines = parsikit.reshape_paragraph_for_graphics(paragraph, max_chars_per_line=30)
+for line in lines:
+    print(line)
+```
+
+---
+
+## Relationship to Other Modules
+
+- **`parsikit.text.standardize_persian`**: Recommended before shaping to unify Arabic characters and fix zero-width non-joiners.
+- **`parsikit.gui.bind_persian_input`**: Integrates live typing assistance for GUI frameworks (Tkinter, CustomTkinter, Qt).

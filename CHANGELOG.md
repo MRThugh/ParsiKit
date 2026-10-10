@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Reorganized Modular Test Suite**: Structured automated tests into `tests/unit/`, `tests/integration/`, `tests/regression/`, `tests/security/`, and `tests/fixtures/`.
 - **Synthetic Test Fixtures**: Created `tests/fixtures/synthetic_data.py` providing valid synthetic test fixtures that do not expose real customer PII.
 - **Bilingual Documentation**: Comprehensive, navigable documentation in both Persian (`docs/fa/`) and English (`docs/en/`), including tutorials, guides, and complete API references.
-- **Runnable Examples**: Standalone educational demonstrations in `examples/` and `docs/examples/`.
+- **Runnable Examples**: Standalone educational demonstrations in canonical `examples/` directory.
 - **Continuous Integration**: Added GitHub Actions workflow (`.github/workflows/ci.yml`) testing Python 3.10, 3.11, 3.12, and 3.13.
 
 ---

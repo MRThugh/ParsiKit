@@ -43,5 +43,5 @@
   - [استفاده در بک‌اند وب (FastAPI و Django)](guides/web_backends.md)
   - [امنیت فرم‌ها و ماسک کردن داده‌های حساس](guides/forms_and_security.md)
   - [اتصال به رابط‌های گرافیکی (GUI)](guides/gui_integration.md)
-- 📖 **[مرجع کامل توابع (API Reference)](api/overview.md)**
+- 📖 **[مرجع کامل توابع (API Reference)](api/index.md)**
 - ❓ **[عیب‌یابی و سوالات متداول](faq.md)**

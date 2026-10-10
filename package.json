@@ -1,0 +1,20 @@
+{
+  "name": "parsikit-hub",
+  "version": "3.3.1",
+  "description": "Interactive Documentation & Verification Hub for ParsiKit v3.3.1",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "python3 -m unittest discover tests && python3 test.py && echo 'Build verified successfully'"
+  },
+  "keywords": [
+    "parsikit",
+    "persian",
+    "python",
+    "jalali",
+    "validation"
+  ],
+  "author": "Ali Kamrani",
+  "license": "MIT"
+}

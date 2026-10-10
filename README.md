@@ -26,11 +26,11 @@
 
 **ParsiKit** (imported as `parsikit`) is a robust, zero-dependency Python library designed as a full-scale infrastructure for Persian language applications.
 
-With the release of **v3.3.0**, ParsiKit evolves into a highly advanced developer utility, text-cleansing, and security-centric suite. Alongside its unified procedural API and rich **Object-Oriented Domain Model**, ParsiKit now introduces bومی (Persian-aware) formatting, visual alignment helpers, text diagnostics, smart classifiers, and sensitive data masking tools designed to make Persian software development reliable, clean, and secure.
+With the release of **v3.3.1**, ParsiKit evolves into a highly advanced developer utility, text-cleansing, and security-centric suite. Alongside its unified procedural API and rich **Object-Oriented Domain Model**, ParsiKit provides بومی (Persian-aware) formatting, visual alignment helpers, text diagnostics, smart classifiers, and sensitive data masking tools designed to make Persian software development reliable, clean, and secure.
 
 ---
 
-## 🚀 Key Architectural Pillars in v3.3.0
+## 🚀 Key Architectural Pillars in v3.3.1
 
 ### 1. Unified Configuration & Thread-Safe Caching (`parsikit.config`, `parsikit.cache`)
 * **Thread-Safe Caching**: Highly repetitive and CPU-bound operations (such as converting large digits to words or parsing database dates) are optimized with an internal thread-safe LRU-like cache.
@@ -42,11 +42,11 @@ Never worry about managing generic `ValueError` or `TypeError` crashes. ParsiKit
 ### 3. Object-Oriented Domain Models (`parsikit.models`)
 Wrap raw strings in rich domain models like `PersianText`, `NationalCode`, `MobileNumber`, `FixedLine`, `BankCard`, `Sheba`, or `VehiclePlate`. These models validate inputs upon instantiation, extract rich metadata (like province/city of issue, operators, or bank details), and serialize cleanly.
 
-### 4. Developer Diagnostics & bومی Formatting (`parsikit.dev` - New in v3.3.0!)
+### 4. Developer Diagnostics & بومی Formatting (`parsikit.dev`)
 * **Persian-Aware Visual Padding (`pformat` & `persian_fstring`)**: Standard formatters misalign texts containing Zero-Width Non-Joiners (ZWNJs) or Arabic diacritics. ParsiKit calculates true visual string widths to output cleanly aligned tables and logs, supporting automatic Persian digit conversions.
 * **Interactive Text Debugging**: Inspect texts for missing ZWNJs, layout issues, or redundant spacings and get immediate corrective actions.
 
-### 5. Advanced SEO, Sanitization, & Security Suite (New in v3.3.0!)
+### 5. Advanced SEO, Sanitization, & Security Suite (`parsikit.text`, `parsikit.validators`)
 * **SEO Romanization (`slugify`)**: Transliterates mixed or Persian strings into SEO-friendly Finglish slugs, utilizing a built-in common word mapping dictionary.
 * **Master Cleansing & Normalization (`clean_text` / `normalize_whitespace`)**: Sanitize multi-line texts by eliminating hidden unicode characters, collapsing redundant whitespace, correcting ZWNJ boundaries, and resolving newline excesses.
 * **Smart Data Detection (`detect`)**: A unified classifier that parses strings to automatically identify if they represent an Iranian mobile number, national code, card number, Sheba code, email, URL, or IP address.
@@ -134,7 +134,7 @@ def register_user(user: UserRegisterSchema):
 ## 🚀 Feature Guides & Code Examples
 
 ### 1. Developer Diagnostics Ecosystem (`parsikit.dev`)
-ParsiKit v3.3.0 ships with a highly optimized developer diagnostic suite for printing, inspecting, and managing logs containing Persian data.
+ParsiKit ships with a highly optimized developer diagnostic suite for printing, inspecting, and managing logs containing Persian data.
 
 #### Interactive Text Diagnostics
 Identify encoding errors, missing semi-spaces, or digit script issues instantly:

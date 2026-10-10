@@ -8,6 +8,7 @@ on:
 
 jobs:
   test:
+    name: Python ${{ matrix.python-version }} Test & Validation
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -22,22 +23,60 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install dependencies
+    - name: Install build tools and package
       run: |
-        python -m pip install --upgrade pip
-        pip install -e .
+        python -m pip install --upgrade pip build wheel pytest
+        python -m pip install -e .
 
-    - name: Run baseline test suite
+    - name: Run legacy regression suite (test.py)
       run: |
         python test.py
 
-    - name: Run discovery test suite
+    - name: Run comprehensive test suite (pytest)
       run: |
-        python -m unittest discover -s tests
+        pytest -v tests
 
-    - name: Verify examples
+    - name: Run unit test discovery
+      run: |
+        python -m unittest discover -s tests -v
+
+    - name: Validate runnable examples
       run: |
         for example in examples/*.py; do
-          echo "Running $example..."
+          echo "Executing $example..."
           python "$example"
         done
+
+    - name: Build wheel and source distribution
+      run: |
+        python -m build
+
+    - name: Test clean wheel installation and import
+      run: |
+        python -m pip install --force-reinstall dist/*.whl
+        python -c "import parsikit; print('Installed ParsiKit version:', parsikit.__version__)"
+
+    - name: Verify internal Markdown documentation links
+      run: |
+        python -c '
+        import re, sys
+        from pathlib import Path
+        md_files = list(Path(".").glob("*.md")) + list(Path("docs").rglob("*.md"))
+        broken = []
+        pattern = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+        for f in md_files:
+            for m in pattern.finditer(f.read_text(encoding="utf-8")):
+                url = m.group(2)
+                if url.startswith(("http://", "https://", "mailto:")):
+                    continue
+                clean = url.split("#")[0]
+                if not clean:
+                    continue
+                if not (f.parent / clean).resolve().exists():
+                    broken.append((str(f), m.group(1), url))
+        if broken:
+            for b in broken:
+                print(f"Broken link in {b[0]}: [{b[1]}]({b[2]})")
+            sys.exit(1)
+        print("All internal Markdown documentation links verified successfully.")
+        '
