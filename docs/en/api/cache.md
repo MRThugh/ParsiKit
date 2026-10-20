@@ -21,16 +21,27 @@ class ThreadSafeLRUCache:
     def __init__(self, maxsize: int = 1024) -> None
 ```
 
-A lightweight in-memory LRU-like cache guarded by a `threading.Lock`.
+A lightweight in-memory LRU cache guarded by `threading.RLock` to provide safe concurrent access and re-entrant recursion without deadlocks.
 
-#### Methods
+#### Capacity Rules
+- `maxsize` must be an integer (`int`). Non-integer types raise `TypeError`.
+- `maxsize >= 0`. Negative integers raise `ValueError`.
+- `maxsize == 0`: Operates in **no-storage mode** where entries are not stored and lookups return the default value.
 
-- **`get(key: tuple[Any, ...]) -> Any | None`**:
-  Retrieves a value from the cache. If found, refreshes the key's position to mark it as most recently used. Returns `None` on cache miss.
-- **`set(key: tuple[Any, ...], value: Any) -> None`**:
-  Inserts or updates a value. When cache size exceeds `maxsize`, evicts the oldest unused key.
+#### Methods & Properties
+
+- **`get(key: Any, default: Any = None) -> Any`**:
+  Retrieves a value from the cache. If found, refreshes the key's position to mark it as most recently used (MRU) and increments hits. Returns `default` on cache miss.
+- **`set(key: Any, value: Any) -> None`**:
+  Inserts or updates a value. If the key exists, updates its value and marks it as MRU without eviction. When capacity is exceeded, evicts the least recently used (LRU) entry.
 - **`clear() -> None`**:
-  Evicts all entries and resets the key ordering list.
+  Evicts all entries and resets hit and miss counters.
+- **`pop(key: Any, default: Any = ...) -> Any`**:
+  Removes and returns an entry from the cache. Raises `KeyError` if key is not found and no default is provided.
+- **`keys_order`**:
+  Property returning a snapshot list of cached keys ordered from oldest (LRU) to newest (MRU).
+- **`__len__()` & `__contains__(key)`**:
+  Provides standard dictionary-like container inspection under lock.
 
 ---
 
@@ -46,8 +57,14 @@ Decorator that caches function return values using a dedicated `ThreadSafeLRUCac
 
 #### Features
 - **Dynamic Configuration Toggle**: Respects `parsikit.config.enable_cache`. When set to `False`, the wrapper bypasses the cache entirely and calls the underlying function directly.
-- **Thread Safety**: Safe for concurrent threads (e.g. FastAPI / Flask / Django worker threads).
-- **Composite Key Generation**: Builds cache keys from positional arguments and sorted keyword argument tuples.
+- **Thread Safety & Reentrancy**: Protected by `threading.RLock`, ensuring safe multi-threaded operation and recursion without deadlocks.
+- **Sentinel-Based Cache Misses**: Uses an internal sentinel to distinguish missing entries from cached values of `None`, `False`, `0`, or empty containers.
+- **Unhashable Argument Graceful Fallback**: When unhashable arguments (such as `list`, `dict`, `set`, or nested unhashable structures) are supplied, caching is gracefully bypassed and the target function executes normally without raising `TypeError`.
+- **Object Identity**: Returns cached objects by reference (`res1 is res2`). Callers requiring isolated mutable results should copy them explicitly.
+- **Inspection & Control**: The wrapped function exposes:
+  - `func.cache`: Direct reference to the underlying `ThreadSafeLRUCache`.
+  - `func.cache_clear()`: Clears cached entries and resets statistics.
+  - `func.cache_info()`: Returns a `CacheInfo(hits, misses, maxsize, currsize)` tuple.
 
 #### Usage Example
 
@@ -56,7 +73,7 @@ import parsikit
 from parsikit.cache import memoize
 
 @memoize(maxsize=512)
-def compute_complex_tax(base_amount: int, tier: str) -> int:
+def compute_complex_tax(base_amount: int, tier: str = "standard") -> int:
     # Expensive financial calculation
     return base_amount * 2
 
@@ -65,6 +82,14 @@ res1 = compute_complex_tax(1000000, tier="A")
 
 # Subsequent calls with identical arguments hit the cache immediately
 res2 = compute_complex_tax(1000000, tier="A")
+assert res1 == res2
+
+# Introspect cache statistics
+info = compute_complex_tax.cache_info()
+print(f"Hits: {info.hits}, Misses: {info.misses}, Size: {info.currsize}")
+
+# Clear cache when needed
+compute_complex_tax.cache_clear()
 
 # Disable cache dynamically if needed
 parsikit.config.enable_cache = False
@@ -76,5 +101,6 @@ parsikit.config.reset_defaults()
 
 ## Edge Cases & Limitations
 
-1. **Hashable Arguments**: Arguments to `@memoize` decorated functions must be hashable. Dictionaries or mutable lists passed as arguments will raise `TypeError` when constructing cache keys.
-2. **Process Isolation**: The cache is purely in-memory within the Python process. Multi-process architectures (e.g. `gunicorn -w 4`) maintain independent caches per worker process.
+1. **Unhashable Arguments**: Functions called with unhashable arguments will execute normally without raising `TypeError`, bypassing the cache for that specific invocation.
+2. **Mutable Return Values**: Because objects are cached by reference, mutating a returned mutable object (e.g. `list.append()`) alters the cached instance.
+3. **Process Isolation**: The cache is purely in-memory within the Python process. Multi-process architectures (e.g. `gunicorn -w 4`) maintain independent caches per worker process.
