@@ -137,6 +137,128 @@ class TestTextProcessing(unittest.TestCase):
         self.assertEqual(mask_email(""), "")
         self.assertEqual(mask_email("not-an-email"), "not-an-email")
 
+    def test_unicode_nfc_canonical_equivalence(self):
+        """Verify that decomposed NFD Unicode sequences are canonically normalized to precomposed NFC."""
+        import unicodedata
+        # 'آ' precomposed is \u0622; decomposed is \u0627\u0653 (Alef + Maddah)
+        decomposed = unicodedata.normalize("NFD", "آب و هوا")
+        self.assertNotEqual(decomposed, "آب و هوا")  # Character sequences differ in NFD
+        normalized = standardize_persian(decomposed)
+        self.assertEqual(normalized, "آب و هوا")
+        self.assertEqual(unicodedata.normalize("NFC", normalized), normalized)
+
+    def test_arabic_letter_variants_normalization(self):
+        """Verify standard Arabic Yeh, Kaf, and Ta Marbuta mapping in Persian context."""
+        arabic_text = "كتابخانه ي ملي و مركز دايرة المعارف"
+        normalized = standardize_persian(arabic_text)
+        self.assertNotIn("ك", normalized)
+        self.assertNotIn("ي", normalized)
+        self.assertIn("ک", normalized)
+        self.assertIn("ی", normalized)
+        self.assertEqual(normalized, "کتابخانه ی ملی و مرکز دایره المعارف")
+
+    def test_zwnj_leading_trailing_and_space_adjacent(self):
+        """Verify leading, trailing, and space-adjacent ZWNJ are cleanly repaired."""
+        # Leading and trailing ZWNJ
+        self.assertEqual(standardize_persian("\u200Cکتاب\u200Cها\u200C"), "کتاب\u200Cها")
+        self.assertEqual(standardize_persian("  \u200Cسلام\u200C  "), "سلام")
+
+        # Space adjacent to ZWNJ: ' \u200C' or '\u200C '
+        self.assertEqual(standardize_persian("کتاب \u200C ها"), "کتاب\u200Cها")
+        self.assertEqual(standardize_persian("کتاب \u200Cها"), "کتاب\u200Cها")
+        self.assertEqual(standardize_persian("کتاب\u200C ها"), "کتاب\u200Cها")
+
+    def test_zwnj_adjacent_to_punctuation(self):
+        """Verify ZWNJ adjacent to punctuation marks is removed as redundant."""
+        self.assertEqual(standardize_persian("کتاب.\u200Cها"), "کتاب.ها")
+        self.assertEqual(standardize_persian("جمله\u200C، کلمه"), "جمله، کلمه")
+        self.assertEqual(standardize_persian("( \u200Cمتن\u200C )"), "(متن)")
+
+    def test_standardize_persian_idempotence(self):
+        """Verify the mathematical idempotence property: f(f(x)) == f(x)."""
+        samples = [
+            "کتاب ها و می رود و سریع تر و زیباترین ها",
+            "  \u200Cکتاب\u200C\u200Cها\u200C  ",
+            "ي كافيه ك   کتاب  ها  ميباشد  ۱۱۲۳",
+            "سلام، دنیا! خوبی؟",
+            "متن (تست داخل پرانتز) است.",
+            "Python 3.10 و نسخه 6.0",
+            "https://example.com/api?q=test",
+            "شماره تماس 09123456789 است.",
+            "",
+            "   ",
+        ]
+        for s in samples:
+            first_pass = standardize_persian(s)
+            second_pass = standardize_persian(first_pass)
+            self.assertEqual(
+                first_pass, second_pass,
+                f"Idempotence violation for input: {repr(s)}"
+            )
+
+    def test_beautify_persian_spacing_urls_and_emails_preserved(self):
+        """Verify URLs, email addresses, and filenames are not broken by punctuation spacing."""
+        text = "به وب‌سایت https://example.com/test بروید یا به kamrani.exe@gmail.com ایمیل بزنید."
+        beautified = beautify_persian_spacing(text)
+        self.assertIn("https://example.com/test", beautified)
+        self.assertIn("kamrani.exe@gmail.com", beautified)
+
+        code_text = "فایل script.min.js یا test.py را اجرا کنید."
+        beautified_code = beautify_persian_spacing(code_text)
+        self.assertIn("script.min.js", beautified_code)
+        self.assertIn("test.py", beautified_code)
+
+    def test_beautify_persian_spacing_decimals_and_time_preserved(self):
+        """Verify decimal numbers and clock timestamps are preserved intact."""
+        text = "عدد 3.14 و مقدار ۱۲.۵ در ساعت 12:30 ثبت شد."
+        beautified = beautify_persian_spacing(text)
+        self.assertIn("3.14", beautified)
+        self.assertIn("۱۲.۵", beautified)
+        self.assertIn("12:30", beautified)
+
+    def test_beautify_persian_spacing_persian_punctuation(self):
+        """Verify Persian punctuation spacing around commas, semicolons, colons, and question marks."""
+        text = "سلام،خوبی؟نکته:مهم است؛ادامه دارد."
+        beautified = beautify_persian_spacing(text)
+        self.assertEqual(beautified, "سلام، خوبی؟ نکته: مهم است؛ ادامه دارد.")
+
+    def test_slugify_prepositions_and_punctuation(self):
+        """Verify slugify handles prepositions, clean separators, and mixed scripts."""
+        self.assertEqual(slugify("کتاب در ایران"), "ketab-dar-iran")
+        self.assertEqual(slugify("برنامه نویسی با پایتون"), "barnameh-nevisi-ba-python")
+        self.assertEqual(slugify("راهنمای خرید از فروشگاه"), "rahnamaye-kharid-az-forooshgah")
+        self.assertEqual(slugify("---سلام---دنیا---"), "salam-donya")
+        self.assertEqual(slugify("تست", separator="_"), "tst")
+        self.assertEqual(slugify(""), "")
+        self.assertEqual(slugify("???!!!"), "")
+
+    def test_persian_sort_key_return_type_and_ordering(self):
+        """Verify persian_sort_key returns tuple and properly orders Persian alphabet."""
+        key = persian_sort_key("سیب")
+        self.assertIsInstance(key, tuple)
+        self.assertGreater(len(key), 0)
+
+        # Invalid type returns (0,)
+        self.assertEqual(persian_sort_key(None), (0,))  # type: ignore
+
+        # Alphabetical ordering
+        items = ["گاو", "چتر", "پلنگ", "ژاله", "آب"]
+        sorted_items = persian_sorted(items)
+        self.assertEqual(sorted_items, ["آب", "پلنگ", "چتر", "ژاله", "گاو"])
+
+    def test_empty_and_whitespace_only_inputs(self):
+        """Verify consistent handling of empty and whitespace-only inputs across text utilities."""
+        self.assertEqual(standardize_persian("   "), "")
+        self.assertEqual(clean_text("   "), "")
+        self.assertEqual(normalize_whitespace("   "), "")
+        self.assertEqual(beautify_persian_spacing(""), "")
+        self.assertEqual(strip_diacritics(""), "")
+        self.assertFalse(is_persian("   "))
+        self.assertEqual(words_to_number(""), 0)
+        self.assertEqual(extract_mobiles(""), [])
+        self.assertEqual(extract_national_codes(""), [])
+        self.assertEqual(convert_numbers(""), "")
+
 
 if __name__ == "__main__":
     unittest.main()

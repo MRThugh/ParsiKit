@@ -26,10 +26,10 @@ Connects cursive Persian characters into appropriate presentation glyphs and man
 - `str`: Shaped Unicode presentation string ready for graphic blitting.
 
 #### Supported Features:
-- Complete Persian and Arabic alphabet presentation mapping.
+- Complete Persian and Arabic alphabet presentation mapping (including `ۀ`, `ك`, and `ي`).
 - Standard **Lam-Alef ligatures** (`لا`, `لآ`, `لأ`, `لإ`) in isolated and final positions.
-- **Diacritics awareness**: ignores short vowels (فتحه، ضمه، کسره، تنوین) during letter connectivity checks.
-- **BiDi Block Preservation**: splits Latin words and numbers from Persian words so English text within a Persian sentence is not inverted.
+- **Diacritics & Combining Graphemes**: Ignores short vowels during connectivity checks and preserves combining diacritics attached to base letters upon reversal.
+- **BiDi Block & Numeral Preservation**: Preserves Latin words and numbers (both ASCII and Persian/Arabic digits) in standard LTR order without inversion.
 
 #### Usage Example:
 

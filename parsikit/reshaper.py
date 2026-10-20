@@ -35,6 +35,7 @@ _SHAPES: dict[str, tuple[str, str, str, str, bool, bool]] = {
     'ف': ('\uFED1', '\uFED3', '\uFED4', '\uFED2', True, True),
     'ق': ('\uFED5', '\uFED7', '\uFED8', '\uFED6', True, True),
     'ک': ('\uFED9', '\uFEDB', '\uFEDC', '\uFEDA', True, True),
+    'ك': ('\uFED9', '\uFEDB', '\uFEDC', '\uFEDA', True, True),  # Arabic Kaf
     'گ': ('\uFB92', '\uFB94', '\uFB95', '\uFB93', True, True),
     'ل': ('\uFEDD', '\uFEDF', '\uFEE0', '\uFEDE', True, True),
     'م': ('\uFEE1', '\uFEE3', '\uFEE4', '\uFEE2', True, True),
@@ -42,12 +43,15 @@ _SHAPES: dict[str, tuple[str, str, str, str, bool, bool]] = {
     'و': ('\uFEED', '', '', '\uFEEE', True, False),
     'ه': ('\uFEE9', '\uFEEB', '\uFEEC', '\uFEEA', True, True),
     'ی': ('\uFEF1', '\uFEF3', '\uFEF4', '\uFEF2', True, True),
+    'ي': ('\uFEF1', '\uFEF3', '\uFEF4', '\uFEF2', True, True),  # Arabic Yeh
+    'ى': ('\uFEEF', '', '', '\uFEF0', True, False),  # Alef Maksura
     'ئ': ('\uFE89', '\uFE8B', '\uFE8C', '\uFE8A', True, True),
     'ء': ('\uFE80', '', '', '', False, False),
     'ة': ('\uFE93', '', '', '\uFE94', True, False),
     'أ': ('\uFE83', '', '', '\uFE84', True, False),
     'إ': ('\uFE87', '', '', '\uFE88', True, False),
     'ؤ': ('\uFE85', '', '', '\uFE86', True, False),
+    'ۀ': ('\uFBA4', '', '', '\uFBA5', True, False),
 }
 
 # Standard Lam-Alef ligatures: (Isolated, Final)
@@ -66,8 +70,11 @@ _DIACRITICS = {
 
 
 def _is_rtl_char(c: str) -> bool:
-    """Check if the given character belongs to the RTL Persian/Arabic Unicode blocks."""
+    """Check if the given character belongs to the RTL Persian/Arabic Unicode blocks (excluding digits)."""
     o = ord(c)
+    # Digits (Persian \u06F0-\u06F9 and Arabic \u0660-\u0669) have LTR sequence order
+    if (0x06F0 <= o <= 0x06F9) or (0x0660 <= o <= 0x0669):
+        return False
     return (0x0600 <= o <= 0x06FF) or (0xFB50 <= o <= 0xFDFF) or (0xFE70 <= o <= 0xFEFF) or c == '\u200C'
 
 
@@ -171,6 +178,17 @@ def _reshape_word(text: str) -> str:
     return "".join(result)
 
 
+def _reverse_rtl_block(block_text: str) -> str:
+    """Reverse characters in an RTL block while keeping combining diacritics attached to their base glyphs."""
+    clusters: list[str] = []
+    for char in block_text:
+        if char in _DIACRITICS and clusters:
+            clusters[-1] += char
+        else:
+            clusters.append(char)
+    return "".join(reversed(clusters))
+
+
 def reshape_for_graphics(text: str, reverse: bool = True) -> str:
     """Prepare Persian text for rendering inside engines that lack RTL/Shaping support."""
     if not text:
@@ -206,7 +224,7 @@ def reshape_for_graphics(text: str, reverse: bool = True) -> str:
     output: list[str] = []
     for is_rtl, block_text in blocks:
         if is_rtl:
-            output.append("".join(reversed(block_text)))
+            output.append(_reverse_rtl_block(block_text))
         else:
             output.append(block_text)
 
@@ -217,20 +235,31 @@ def reshape_paragraph_for_graphics(text: str, max_chars_per_line: int, reverse: 
     """Reshape a long paragraph, automatically wrapping it into multiple lines of a max length."""
     if not text:
         return []
-    words = text.split(" ")
-    lines = []
-    current_line = []
-    current_length = 0
-    for word in words:
-        word_len = len(word)
-        if current_length + word_len + (1 if current_line else 0) <= max_chars_per_line:
-            current_line.append(word)
-            current_length += word_len + (1 if len(current_line) > 1 else 0)
-        else:
-            if current_line:
-                lines.append(" ".join(current_line))
-            current_line = [word]
-            current_length = word_len
-    if current_line:
-        lines.append(" ".join(current_line))
-    return [reshape_for_graphics(line, reverse=reverse) for line in lines]
+    if not isinstance(max_chars_per_line, int) or max_chars_per_line <= 0:
+        raise ValueError("max_chars_per_line must be a positive integer.")
+
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    paragraphs = normalized.split("\n")
+
+    all_lines: list[str] = []
+    for para in paragraphs:
+        if not para.strip():
+            all_lines.append("")
+            continue
+        words = para.split(" ")
+        current_line: list[str] = []
+        current_length = 0
+        for word in words:
+            word_len = len(word)
+            if current_length + word_len + (1 if current_line else 0) <= max_chars_per_line:
+                current_line.append(word)
+                current_length += word_len + (1 if len(current_line) > 1 else 0)
+            else:
+                if current_line:
+                    all_lines.append(" ".join(current_line))
+                current_line = [word]
+                current_length = word_len
+        if current_line:
+            all_lines.append(" ".join(current_line))
+
+    return [reshape_for_graphics(line, reverse=reverse) for line in all_lines]

@@ -7,6 +7,7 @@ Text standardization, normalization, and keyboard layout correction.
 from __future__ import annotations
 from typing import Iterable, TypeVar, Literal
 import re
+import unicodedata
 
 # Table for converting Arabic characters to Persian equivalents
 _ARABIC_TO_PERSIAN_TABLE: dict[int, int] = str.maketrans(
@@ -38,13 +39,12 @@ _KEYBOARD_TABLE = str.maketrans(_QWERTY_TO_PERSIAN_MAP)
 
 _ZWNJ = "\u200C"
 
-# Robust prefixes
+# Precompiled prefix and suffix patterns for ZWNJ adjustment
 _PREFIX_PATTERNS = [
     (re.compile(r"\b(می|نمی)\s+(?=\S)"), r"\1" + _ZWNJ),
     (re.compile(r"\b(بی)\s+(?=\S)"), r"\1" + _ZWNJ),
 ]
 
-# Suffixes including comparative adjectives "تر" and "ترین"
 _SUFFIX_PATTERNS = [
     (
         re.compile(r"(?<=\S)\s+(ها|های|هایی|تر|ترین|ای|ام|ات|اش|ایم|اید|اند)\b"),
@@ -54,257 +54,98 @@ _SUFFIX_PATTERNS = [
 
 _ZWNJ_PATTERNS = _PREFIX_PATTERNS + _SUFFIX_PATTERNS
 
-_T = TypeVar("_T")
+# Precompiled ZWNJ cleanup regular expressions
+_SPACE_ZWNJ_PATTERN = re.compile(r"[\t ]*\u200C[\t ]*")
+_PUNCT_ZWNJ_PATTERN1 = re.compile(r"\u200C+([.,،؛؟?!:()\[\]{}])")
+_PUNCT_ZWNJ_PATTERN2 = re.compile(r"([.,،؛؟?!:()\[\]{}])\u200C+")
+_DUPLICATE_ZWNJ_PATTERN = re.compile(r"\u200C{2,}")
+_STRIP_ZWNJ_PATTERN = re.compile(r"^\u200C+|\u200C+$")
+_MULTI_SPACE_PATTERN = re.compile(r" {2,}")
+_DIACRITICS_PATTERN = re.compile(r"[\u064B-\u065F\u0670]")
+_PERSIAN_CHAR_PATTERN = re.compile(r"[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]")
 
+# Precompiled punctuation spacing patterns
+_PERSIAN_COMMA_RE = re.compile(r"([\u0600-\u06FF])\s*,\s*(?=[\u0600-\u06FF])")
+_PERSIAN_SEMICOLON_RE = re.compile(r"([\u0600-\u06FF])\s*;\s*(?=[\u0600-\u06FF])")
+_SPACE_BEFORE_PUNCT_RE = re.compile(r"\s+([.،؛؟?!:])")
+_PERSIAN_PUNCT_SPACE_RE = re.compile(r"([،؛؟])(?=[^\s،؛؟])")
+_EXCLAMATION_SPACE_RE = re.compile(r"(!)(?=[^\s!])")
+_QUESTION_SPACE_RE = re.compile(r"(\?)(?=[^\s?])")
+_ALL_DIGITS_CLASS = r"0-9\u06F0-\u06F9\u0660-\u0669"
+_COLON_SPACE_RE = re.compile(rf"(?<!\bhttp)(?<!\bhttps)(?<!\bftp)(?<![{_ALL_DIGITS_CLASS}]):(?![/{_ALL_DIGITS_CLASS}\s])")
+_PERIOD_SPACE_RE = re.compile(rf"(?<=[\u0600-\u06EF\u06FA-\u06FF])\.(?=[^\s.{_ALL_DIGITS_CLASS}])")
 
-def strip_diacritics(text: str) -> str:
-    """Remove Arabic/Persian diacritics (Fatha, Kasra, Damma, Tanween, Tashdeed, Sukuun)."""
-    if not text:
-        return text
-    diacritics_pattern = re.compile(r"[\u064B-\u065F\u0670]")
-    return diacritics_pattern.sub("", text)
+_OPEN_BRACKET_SPACE_RE1 = re.compile(r"(\S)\(")
+_OPEN_BRACKET_SPACE_RE2 = re.compile(r"\)(\S)")
+_OPEN_SQBRACKET_SPACE_RE1 = re.compile(r"(\S)\[")
+_OPEN_SQBRACKET_SPACE_RE2 = re.compile(r"\](\S)")
+_OPEN_PAREN_TRIM_RE = re.compile(r"\(\s+")
+_CLOSE_PAREN_SPACE_RE = re.compile(r"\s+\)")
+_OPEN_SQBRACKET_TRIM_RE = re.compile(r"\[\s+")
+_CLOSE_SQBRACKET_TRIM_RE = re.compile(r"\s+\]")
+_OPEN_BRACE_TRIM_RE = re.compile(r"\{\s+")
+_CLOSE_BRACE_TRIM_RE = re.compile(r"\s+\}")
+_OPEN_GUILLEMET_TRIM_RE = re.compile(r"«\s+")
+_CLOSE_GUILLEMET_TRIM_RE = re.compile(r"\s+»")
+_OPEN_GUILLEMET_SPACE_RE = re.compile(r"(\S)«")
+_CLOSE_GUILLEMET_SPACE_RE = re.compile(r"»(\S)")
 
+# Collation weights for Persian alphabetical sorting
+_SORT_NORM_MAP = str.maketrans({
+    "ي": "ی", "ى": "ی", "ك": "ک",
+    "ة": "ه", "ۀ": "ه",
+    "أ": "ا", "إ": "ا", "ٱ": "ا",
+    "ؤ": "و", "ئ": "ی",
+})
+_PERSIAN_ALPHABET = "آابپتثجچحخدذرزژسشصضطظعغفقکگلمنوهی"
+_PERSIAN_WEIGHTS: dict[str, int] = {char: 1000 + idx for idx, char in enumerate(_PERSIAN_ALPHABET)}
+_DIGIT_CONV = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
 
-def is_persian(text: str) -> bool:
-    """Check if the text contains at least one Persian/Arabic script character (including reshaped forms)."""
-    if not text:
-        return False
-    return bool(re.search(r"[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]", text))
+# Text extraction & cleaning patterns
+_TO_ENGLISH_LOCAL = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+_MOBILE_PATTERN = re.compile(r"\b(?:\+98|0098|98|0)?[\s-]?(?:9\d{9}|9(?:[\s-]?\d){9})\b")
+_NATIONAL_CODE_PATTERN = re.compile(r"\b\d{10}\b|\b\d{3}[-\s]\d{6}[-\s]\d\b")
+_CONTROL_CHARS_PATTERN = re.compile(r"[\u200B\uFEFF\u200E\u200F\u202A-\u202E]")
+_REDUNDANT_NEWLINES_PATTERN = re.compile(r"\n{3,}")
+_UNICODE_SPACES_PATTERN = re.compile(r"[\t\xa0\u2007\u2008\u2009\u200A\u202F]+")
+_SLUG_TOKEN_PATTERN = re.compile(r"[a-z0-9\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]+")
 
-
-def correct_keyboard_layout(text: str) -> str:
-    """Correct English layout typed text into Persian layout (e.g. 'sghl' -> 'سلام')."""
-    if not text:
-        return text
-    return text.translate(_KEYBOARD_TABLE)
-
-
-def standardize_persian(text: str, *, strip_diacritics_opt: bool = False) -> str:
-    """Normalize and standardize Persian text layout, character codes, and spaces."""
-    if not text:
-        return text
-
-    if strip_diacritics_opt:
-        text = strip_diacritics(text)
-
-    # Convert characters
-    text = text.translate(_ARABIC_TO_PERSIAN_TABLE)
-
-    # Adjust ZWNJs
-    for pattern, replacement in _ZWNJ_PATTERNS:
-        text = pattern.sub(replacement, text)
-
-    # Collapse duplicate ZWNJs
-    text = re.sub(r"\u200C{2,}", _ZWNJ, text)
-
-    # Collapse redundant spaces
-    text = re.sub(r" {2,}", " ", text).strip()
-
-    return text
-
-
-def persian_sort_key(s: str) -> list[int]:
-    """Generate a sorting key for Persian strings to allow proper alphabetical ordering."""
-    if not isinstance(s, str):
-        return [0]
-    
-    _norm_map = str.maketrans({
-        "ي": "ی", "ى": "ی", "ك": "ک",
-        "ة": "ه", "ۀ": "ه",
-    })
-    s = s.translate(_norm_map).lower()
-    
-    persian_alphabet = "آابپتثجچحخدذرزژسشصضطظعغفقکگلمنوهی"
-    weights = {char: idx for idx, char in enumerate(persian_alphabet)}
-    
-    key = []
-    for char in s:
-        if char == ' ':
-            key.append(-100)
-        elif char == '\u200C': # ZWNJ
-            key.append(-99)
-        elif char.isdigit():
-            digit_map = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
-            try:
-                digit_val = int(char.translate(digit_map))
-                key.append(-50 + digit_val)
-            except ValueError:
-                key.append(ord(char))
-        elif char in weights:
-            key.append(1000 + weights[char])
-        else:
-            key.append(ord(char))
-            
-    return key
-
-
-def persian_sorted(iterable: Iterable[_T], *, reverse: bool = False) -> list[_T]:
-    """Sort an iterable alphabetically using correct Persian collation weights."""
-    return sorted(iterable, key=persian_sort_key, reverse=reverse)  # type: ignore
-
-
-def beautify_persian_spacing(text: str) -> str:
-    """Optimize and beautify spaces around Persian punctuation and symbols."""
-    if not text:
-        return text
-        
-    text = re.sub(r"([\u0600-\u06FF])\s*,\s*(?=[\u0600-\u06FF])", r"\1، ", text)
-    text = re.sub(r"([\u0600-\u06FF])\s*;\s*(?=[\u0600-\u06FF])", r"\1؛ ", text)
-
-    text = re.sub(r"\s+([.،؛؟?!:])", r"\1", text)
-    text = re.sub(r"([.،؛؟?!:])(?=[^\s.،؛؟?!:])", r"\1 ", text)
-
-    text = re.sub(r"\s+\)", ")", text)
-    text = re.sub(r"\[\s+", "[", text)
-    text = re.sub(r"\s+\]", "]", text)
-    text = re.sub(r"\{\s+", "{", text)
-    text = re.sub(r"\s+\}", "}", text)
-
-    text = re.sub(r"(\S)\(", r"\1 (", text)
-    text = re.sub(r"\)(\S)", r") \1", text)
-    text = re.sub(r"(\S)\[", r"\1 [", text)
-    text = re.sub(r"\](\S)", r"] \1", text)
-
-    text = re.sub(r" {2,}", " ", text).strip()
-    return text
-
-
-def extract_mobiles(text: str) -> list[str]:
-    """Extract and normalize all unique Iranian mobile numbers found inside a raw text block."""
-    if not text:
-        return []
-    
-    _TO_ENGLISH_LOCAL = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
-    eng_text = text.translate(_TO_ENGLISH_LOCAL)
-    
-    pattern = re.compile(r"\b(?:\+98|0098|98|0)?9\d{9}\b")
-    matches = pattern.findall(eng_text)
-    
-    from parsikit.validators import normalize_mobile, is_valid_mobile
-    normalized_list = []
-    for match in matches:
-        if is_valid_mobile(match):
-            normalized_list.append(normalize_mobile(match, prefix="0"))
-            
-    seen = set()
-    result = []
-    for num in normalized_list:
-        if num not in seen:
-            seen.add(num)
-            result.append(num)
-    return result
-
-
-def extract_national_codes(text: str) -> list[str]:
-    """Extract and validate all Iranian national codes (کد ملی) found inside a raw text block."""
-    if not text:
-        return []
-    
-    _TO_ENGLISH_LOCAL = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
-    eng_text = text.translate(_TO_ENGLISH_LOCAL)
-    
-    pattern = re.compile(r"\b\d{10}\b|\b\d{3}-\d{6}-\d\b")
-    matches = pattern.findall(eng_text)
-    
-    from parsikit.validators import is_valid_national_code
-    valid_codes = []
-    for match in matches:
-        clean_code = match.replace("-", "")
-        if is_valid_national_code(clean_code):
-            valid_codes.append(clean_code)
-            
-    seen = set()
-    result = []
-    for code in valid_codes:
-        if code not in seen:
-            seen.add(code)
-            result.append(code)
-    return result
-
-
-def words_to_number(text: str) -> int:
-    """Convert Persian textual numbers (e.g. 'سی و دو هزار و پانصد') back into an integer."""
-    if not text:
-        return 0
-
-    clean_text = text.replace("،", "").replace(",", "").strip()
-    
-    ones = {
-        "صفر": 0, "یک": 1, "دو": 2, "سه": 3, "چهار": 4, "پنج": 5, "شش": 6, "هفت": 7, "هشت": 8, "نه": 9,
-    }
-    teens = {
-        "ده": 10, "یازده": 11, "دوازده": 12, "سیزده": 13, "چهارده": 14, "پانزده": 15, "شانزده": 16,
-        "هفده": 17, "هجده": 18, "نوزده": 19
-    }
-    tens = {
-        "بیست": 20, "سی": 30, "چهل": 40, "پنجاه": 50, "شصت": 60, "هفتاد": 70, "هشتاد": 80, "نود": 90
-    }
-    hundreds = {
-        "یکصد": 100, "صد": 100, "دویست": 200, "سیصد": 300, "چهارصد": 400, "پانصد": 500,
-        "ششصد": 600, "هفتصد": 700, "هفتصد": 700, "هشتصد": 800, "نهصد": 900
-    }
-    scales = {
-        "هزار": 1000,
-        "میلیون": 1000000,
-        "میلیارد": 1000000000,
-        "تریلیون": 1000000000000,
-        "کوآدریلیون": 1000000000000000,
-        "کوئینتیلیون": 1000000000000000000,
-        "سکستیلیون": 1000000000000000000000,
-        "سپتیلیون": 1000000000000000000000000,
-    }
-
-    raw_tokens = [t.strip() for t in clean_text.split(" ") if t.strip()]
-    tokens = []
-    for token in raw_tokens:
-        if token == "و":
-            continue
-        tokens.append(token)
-
-    total = 0
-    current_group = 0
-    is_neg = False
-
-    if tokens and tokens[0] == "منفی":
-        is_neg = True
-        tokens.pop(0)
-
-    for token in tokens:
-        if token in ones:
-            current_group += ones[token]
-        elif token in teens:
-            current_group += teens[token]
-        elif token in tens:
-            current_group += tens[token]
-        elif token in hundreds:
-            current_group += hundreds[token]
-        elif token in scales:
-            scale = scales[token]
-            if current_group == 0:
-                current_group = 1
-            total += current_group * scale
-            current_group = 0
-        else:
-            try:
-                from parsikit.number import persian_to_english
-                num = int(persian_to_english(token))
-                current_group += num
-            except ValueError:
-                continue
-
-    total += current_group
-    return -total if is_neg else total
-
+# Persian written numbers mapping
+_ONES = {
+    "صفر": 0, "یک": 1, "دو": 2, "سه": 3, "چهار": 4, "پنج": 5, "شش": 6, "هفت": 7, "هشت": 8, "نه": 9,
+}
+_TEENS = {
+    "ده": 10, "یازده": 11, "دوازده": 12, "سیزده": 13, "چهارده": 14, "پانزده": 15, "شانزده": 16,
+    "هفده": 17, "هجده": 18, "نوزده": 19
+}
+_TENS = {
+    "بیست": 20, "سی": 30, "چهل": 40, "پنجاه": 50, "شصت": 60, "هفتاد": 70, "هشتاد": 80, "نود": 90
+}
+_HUNDREDS = {
+    "یکصد": 100, "صد": 100, "دویست": 200, "سیصد": 300, "چهارصد": 400, "پانصد": 500,
+    "ششصد": 600, "هفتصد": 700, "هشتصد": 800, "نهصد": 900
+}
+_SCALES = {
+    "هزار": 1000,
+    "میلیون": 1000000,
+    "میلیارد": 1000000000,
+    "تریلیون": 1000000000000,
+    "کوآدریلیون": 1000000000000000,
+    "کوئینتیلیون": 1000000000000000000,
+    "سکستیلیون": 1000000000000000000000,
+    "سپتیلیون": 1000000000000000000000000,
+}
 
 # Character mapping dictionary for Persian-to-Finglish Romanization
 _CHAR_TRANS_TABLE = {
     'آ': 'a', 'ا': 'a', 'ب': 'b', 'پ': 'p', 'ت': 't', 'ث': 's', 'ج': 'j', 'چ': 'ch', 'ح': 'h', 'خ': 'kh',
     'د': 'd', 'ذ': 'z', 'ر': 'r', 'ز': 'z', 'ژ': 'zh', 'س': 's', 'ش': 'sh', 'ص': 's', 'ض': 'z', 'ط': 't',
     'ظ': 'z', 'ع': 'a', 'غ': 'gh', 'ف': 'f', 'ق': 'gh', 'ک': 'k', 'گ': 'g', 'ل': 'l', 'م': 'm', 'ن': 'n',
-    'و': 'v', 'ه': 'h', 'ی': 'y', 'ئ': 'y', 'ء': 'a', 'ۀ': 'h', 'ة': 'h'
+    'و': 'v', 'ه': 'h', 'ی': 'y', 'ئ': 'y', 'ء': 'a', 'ۀ': 'h', 'ة': 'h',
+    'أ': 'a', 'إ': 'e', 'ٱ': 'a'
 }
 
-# Sub-dictionary for popular Persian words to keep slugs clean and meaningful
+# Sub-dictionary for popular Persian words and prepositions to keep slugs clean and meaningful
 _COMMON_WORDS_PINGLISH = {
     "سلام": "salam",
     "دنیا": "donya",
@@ -341,6 +182,9 @@ _COMMON_WORDS_PINGLISH = {
     "پول": "pool",
     "خرید": "kharid",
     "فروش": "foroosh",
+    "فروشگاه": "forooshgah",
+    "راهنما": "rahnama",
+    "راهنمای": "rahnamaye",
     "مدرسه": "madreseh",
     "دانشگاه": "daneshgah",
     "استاد": "ostad",
@@ -348,6 +192,7 @@ _COMMON_WORDS_PINGLISH = {
     "درس": "dars",
     "آموزش": "amoozesh",
     "وردپرس": "wordpress",
+    "پایتون": "python",
     "برنامه": "barnameh",
     "نویسی": "nevisi",
     "وب": "web",
@@ -356,7 +201,266 @@ _COMMON_WORDS_PINGLISH = {
     "مقاله": "maghaleh",
     "محصول": "mahsool",
     "نسخه": "neskheh",
+    "در": "dar",
+    "از": "az",
+    "با": "ba",
+    "به": "be",
+    "تا": "ta",
+    "برای": "baraye",
+    "این": "in",
+    "آن": "an",
 }
+
+_T = TypeVar("_T")
+
+
+def strip_diacritics(text: str) -> str:
+    """Remove Arabic/Persian diacritics (Fatha, Kasra, Damma, Tanween, Tashdeed, Sukuun)."""
+    if not text:
+        return text
+    return _DIACRITICS_PATTERN.sub("", text)
+
+
+def is_persian(text: str) -> bool:
+    """Check if the text contains at least one Persian/Arabic script character (including reshaped forms)."""
+    if not text:
+        return False
+    return bool(_PERSIAN_CHAR_PATTERN.search(text))
+
+
+def correct_keyboard_layout(text: str) -> str:
+    """Correct English layout typed text into Persian layout (e.g. 'sghl' -> 'سلام')."""
+    if not text:
+        return text
+    return text.translate(_KEYBOARD_TABLE)
+
+
+def standardize_persian(text: str, *, strip_diacritics_opt: bool = False) -> str:
+    """Normalize and standardize Persian text layout, character codes, and spaces.
+    
+    Applies:
+    1. Unicode canonical NFC normalization.
+    2. Optional diacritic stripping if requested.
+    3. Arabic-to-Persian letter normalization (ي/ك/ة to ی/ک/ه).
+    4. ZWNJ insertion for prefixes (می‌/نمی‌/بی‌) and suffixes (‌ها/‌ترین/...).
+    5. Clean-up of space-adjacent ZWNJ (e.g. " \u200c" -> "\u200c").
+    6. Stripping of redundant ZWNJ characters adjacent to punctuation marks.
+    7. Deduplication of adjacent ZWNJs and removal of leading/trailing ZWNJs.
+    8. Redundant multi-space collapsing and edge trimming.
+    """
+    if not text:
+        return text
+
+    # 1. Unicode canonical normalization (NFC)
+    text = unicodedata.normalize("NFC", text)
+
+    # 2. Optional diacritics removal
+    if strip_diacritics_opt:
+        text = strip_diacritics(text)
+
+    # 3. Convert Arabic character variants to Persian
+    text = text.translate(_ARABIC_TO_PERSIAN_TABLE)
+
+    # 4. Adjust ZWNJs around prefixes and suffixes
+    for pattern, replacement in _ZWNJ_PATTERNS:
+        text = pattern.sub(replacement, text)
+
+    # 5. Clean up redundant spaces adjacent to ZWNJ
+    text = _SPACE_ZWNJ_PATTERN.sub(_ZWNJ, text)
+
+    # 6. Remove redundant ZWNJ adjacent to punctuation
+    text = _PUNCT_ZWNJ_PATTERN1.sub(r"\1", text)
+    text = _PUNCT_ZWNJ_PATTERN2.sub(r"\1", text)
+
+    # 7. Collapse duplicate ZWNJs into single ZWNJ
+    text = _DUPLICATE_ZWNJ_PATTERN.sub(_ZWNJ, text)
+
+    # 8. Strip leading and trailing ZWNJs
+    text = _STRIP_ZWNJ_PATTERN.sub("", text)
+
+    # 9. Collapse redundant spaces
+    text = _MULTI_SPACE_PATTERN.sub(" ", text).strip()
+
+    return text
+
+
+def persian_sort_key(s: str) -> tuple[int, ...]:
+    """Generate a sorting key tuple for Persian strings to allow proper alphabetical ordering."""
+    if not isinstance(s, str):
+        return (0,)
+    
+    s = s.translate(_SORT_NORM_MAP).lower()
+    
+    key: list[int] = []
+    for char in s:
+        if char == ' ':
+            key.append(-100)
+        elif char == '\u200C':  # ZWNJ
+            key.append(-99)
+        elif char.isdigit():
+            digit_str = char.translate(_DIGIT_CONV)
+            try:
+                key.append(-50 + int(digit_str))
+            except ValueError:
+                key.append(ord(char))
+        elif char in _PERSIAN_WEIGHTS:
+            key.append(_PERSIAN_WEIGHTS[char])
+        else:
+            key.append(ord(char))
+            
+    return tuple(key)
+
+
+def persian_sorted(iterable: Iterable[_T], *, reverse: bool = False) -> list[_T]:
+    """Sort an iterable alphabetically using correct Persian collation weights."""
+    return sorted(iterable, key=persian_sort_key, reverse=reverse)  # type: ignore
+
+
+def beautify_persian_spacing(text: str) -> str:
+    """Optimize and beautify spaces around Persian punctuation and symbols.
+    
+    Carefully respects URLs, email addresses, decimal numbers (e.g. 3.14, ۱۲.۵),
+    timestamps (e.g. 12:30), file names, and ellipses without breaking them.
+    """
+    if not text:
+        return text
+        
+    text = _PERSIAN_COMMA_RE.sub(r"\1، ", text)
+    text = _PERSIAN_SEMICOLON_RE.sub(r"\1؛ ", text)
+
+    text = _SPACE_BEFORE_PUNCT_RE.sub(r"\1", text)
+
+    # Safe punctuation spacing: space after Persian punctuation
+    text = _PERSIAN_PUNCT_SPACE_RE.sub(r"\1 ", text)
+    text = _EXCLAMATION_SPACE_RE.sub(r"\1 ", text)
+    text = _QUESTION_SPACE_RE.sub(r"\1 ", text)
+
+    # Colon: space after colon when not inside a URL or between digits
+    text = _COLON_SPACE_RE.sub(": ", text)
+
+    # Period: space after period when following a Persian sentence
+    text = _PERIOD_SPACE_RE.sub(". ", text)
+
+    # Bracket, parenthesis, and guillemet spacing
+    text = _OPEN_PAREN_TRIM_RE.sub("(", text)
+    text = _CLOSE_PAREN_SPACE_RE.sub(")", text)
+    text = _OPEN_SQBRACKET_TRIM_RE.sub("[", text)
+    text = _CLOSE_SQBRACKET_TRIM_RE.sub("]", text)
+    text = _OPEN_BRACE_TRIM_RE.sub("{", text)
+    text = _CLOSE_BRACE_TRIM_RE.sub("}", text)
+    text = _OPEN_GUILLEMET_TRIM_RE.sub("«", text)
+    text = _CLOSE_GUILLEMET_TRIM_RE.sub("»", text)
+
+    text = _OPEN_BRACKET_SPACE_RE1.sub(r"\1 (", text)
+    text = _OPEN_BRACKET_SPACE_RE2.sub(r") \1", text)
+    text = _OPEN_SQBRACKET_SPACE_RE1.sub(r"\1 [", text)
+    text = _OPEN_SQBRACKET_SPACE_RE2.sub(r"] \1", text)
+    text = _OPEN_GUILLEMET_SPACE_RE.sub(r"\1 «", text)
+    text = _CLOSE_GUILLEMET_SPACE_RE.sub(r"» \1", text)
+
+    text = _MULTI_SPACE_PATTERN.sub(" ", text).strip()
+    return text
+
+
+def extract_mobiles(text: str) -> list[str]:
+    """Extract and normalize all unique Iranian mobile numbers found inside a raw text block."""
+    if not text:
+        return []
+    
+    eng_text = text.translate(_TO_ENGLISH_LOCAL)
+    matches = _MOBILE_PATTERN.findall(eng_text)
+    
+    from parsikit.validators import normalize_mobile, is_valid_mobile
+    normalized_list = []
+    for match in matches:
+        clean_match = re.sub(r"[\s-]", "", match)
+        if is_valid_mobile(clean_match):
+            normalized_list.append(normalize_mobile(clean_match, prefix="0"))
+            
+    seen = set()
+    result = []
+    for num in normalized_list:
+        if num not in seen:
+            seen.add(num)
+            result.append(num)
+    return result
+
+
+def extract_national_codes(text: str) -> list[str]:
+    """Extract and validate all Iranian national codes (کد ملی) found inside a raw text block."""
+    if not text:
+        return []
+    
+    eng_text = text.translate(_TO_ENGLISH_LOCAL)
+    matches = _NATIONAL_CODE_PATTERN.findall(eng_text)
+    
+    from parsikit.validators import is_valid_national_code
+    valid_codes = []
+    for match in matches:
+        clean_code = match.replace("-", "").replace(" ", "")
+        if is_valid_national_code(clean_code):
+            valid_codes.append(clean_code)
+            
+    seen = set()
+    result = []
+    for code in valid_codes:
+        if code not in seen:
+            seen.add(code)
+            result.append(code)
+    return result
+
+
+def words_to_number(text: str) -> int:
+    """Convert Persian textual numbers (e.g. 'سی و دو هزار و پانصد') back into an integer."""
+    if not text:
+        return 0
+
+    clean_text = text.replace("،", "").replace(",", "").strip()
+
+    raw_tokens = [t.strip() for t in clean_text.split() if t.strip()]
+    tokens = []
+    for token in raw_tokens:
+        if token == "و":
+            continue
+        tokens.append(token)
+
+    total = 0
+    current_group = 0
+    is_neg = False
+
+    if tokens and tokens[0] == "منفی":
+        is_neg = True
+        tokens.pop(0)
+
+    for token in tokens:
+        if token in _ONES:
+            current_group += _ONES[token]
+        elif token in _TEENS:
+            current_group += _TEENS[token]
+        elif token in _TENS:
+            current_group += _TENS[token]
+        elif token in _HUNDREDS:
+            current_group += _HUNDREDS[token]
+        elif token in _SCALES:
+            scale = _SCALES[token]
+            if scale >= 1000000 and total > 0 and total < scale:
+                total = (total + current_group) * scale
+                current_group = 0
+            else:
+                if current_group == 0:
+                    current_group = 1
+                total += current_group * scale
+                current_group = 0
+        else:
+            try:
+                from parsikit.number import persian_to_english
+                num = int(persian_to_english(token))
+                current_group += num
+            except ValueError:
+                continue
+
+    total += current_group
+    return -total if is_neg else total
 
 
 def slugify(text: str, separator: str = "-") -> str:
@@ -378,7 +482,7 @@ def slugify(text: str, separator: str = "-") -> str:
     cleaned = persian_to_english(cleaned).lower()
 
     # Extract alphanumeric tokens including Persian unicode chars
-    tokens = re.findall(r"[a-z0-9\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]+", cleaned)
+    tokens = _SLUG_TOKEN_PATTERN.findall(cleaned)
 
     slug_parts = []
     for token in tokens:
@@ -424,25 +528,25 @@ def clean_text(text: str) -> str:
 
     from parsikit.number import english_to_persian
 
-    # 1. Standardize Persian characters & Arabic transformations
+    # 1. Standardize Persian characters & Arabic transformations & NFC
     text = standardize_persian(text)
 
     # 2. Convert English and Arabic numbers to Persian digits
     text = english_to_persian(text)
 
-    # 3. Beautify spacing around punctuation
+    # 3. Beautify spacing around punctuation (safely preserving URLs/emails/decimals)
     text = beautify_persian_spacing(text)
 
     # 4. Remove unwanted zero-width/control characters, preserving ZWNJ (u200C)
-    text = re.sub(r"[\u200B\uFEFF\u200E\u200F\u202A-\u202E]", "", text)
+    text = _CONTROL_CHARS_PATTERN.sub("", text)
 
     # 5. Collapse redundant empty lines (allows maximum 1 empty line)
-    text = re.sub(r"\n{3,}", "\n\n", text)
+    text = _REDUNDANT_NEWLINES_PATTERN.sub("\n\n", text)
 
     # 6. Trim leading/trailing spaces per line, and collapse extra spaces
     lines = []
     for line in text.split("\n"):
-        line_cleaned = re.sub(r" {2,}", " ", line).strip()
+        line_cleaned = _MULTI_SPACE_PATTERN.sub(" ", line).strip()
         lines.append(line_cleaned)
 
     return "\n".join(lines)
@@ -465,21 +569,21 @@ def normalize_whitespace(text: str, keep_paragraphs: bool = True) -> str:
 
     # Convert carriage returns to Unix newlines and map non-breaking/unicode spaces to standard spaces
     text = text.replace("\r\n", "\n").replace("\r", "\n")
-    text = re.sub(r"[\t\xa0\u2007\u2008\u2009\u200A\u202F]+", " ", text)
+    text = _UNICODE_SPACES_PATTERN.sub(" ", text)
 
     if not keep_paragraphs:
         # Convert all layout segments and newlines to simple single spaces
         text = text.replace("\n", " ")
-        text = re.sub(r" {2,}", " ", text)
+        text = _MULTI_SPACE_PATTERN.sub(" ", text)
         return text.strip()
 
     # Collapse multiple consecutive newlines (3 or more) to exactly 2 newlines (1 empty line)
-    text = re.sub(r"\n{3,}", "\n\n", text)
+    text = _REDUNDANT_NEWLINES_PATTERN.sub("\n\n", text)
 
     # Trim leading/trailing spaces per line, and collapse extra spaces
     lines = []
     for line in text.split("\n"):
-        line_cleaned = re.sub(r" {2,}", " ", line).strip()
+        line_cleaned = _MULTI_SPACE_PATTERN.sub(" ", line).strip()
         lines.append(line_cleaned)
 
     return "\n".join(lines).strip()
@@ -550,7 +654,7 @@ def mask_card(card: str, mask_char: str = "*") -> str:
 def mask_national_code(code: str, mask_char: str = "*") -> str:
     """
     Mask sensitive middle digits of an Iranian 10-digit National Code (کد ملی).
-    Formats with bومی layout, keeping first 3 and last 3 digits readable.
+    Formats with بومی layout, keeping first 3 and last 3 digits readable.
     E.g., "7730123452" -> "773-****45-2"
     """
     if not code:
@@ -571,7 +675,7 @@ def mask_email(email: str, mask_char: str = "*") -> str:
     """
     Mask sensitive characters in the username part of an email address.
     Keeps first 2 and last 1 character of username, masking the rest.
-    E.g., "kamrani.exe@gmail.com" -> "ka******e@gmail.com"
+    E.g., "kamrani.exe@gmail.com" -> "ka********e@gmail.com"
     """
     if not email or "@" not in email:
         return email
@@ -587,4 +691,4 @@ def mask_email(email: str, mask_char: str = "*") -> str:
             masked_user = username[:2] + (mask_char * mask_len) + username[-1:]
         return f"{masked_user}@{domain}"
     except Exception:
-        return cleaned
+        return cleaned
