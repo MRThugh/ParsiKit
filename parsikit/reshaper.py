@@ -48,6 +48,7 @@ _SHAPES: dict[str, tuple[str, str, str, str, bool, bool]] = {
     'ئ': ('\uFE89', '\uFE8B', '\uFE8C', '\uFE8A', True, True),
     'ء': ('\uFE80', '', '', '', False, False),
     'ة': ('\uFE93', '', '', '\uFE94', True, False),
+    'ە': ('\u06D5', '', '', '\uFEEA', True, False),  # Kurdish Ae
     'أ': ('\uFE83', '', '', '\uFE84', True, False),
     'إ': ('\uFE87', '', '', '\uFE88', True, False),
     'ؤ': ('\uFE85', '', '', '\uFE86', True, False),

@@ -9,7 +9,7 @@ from typing import Iterable, TypeVar, Literal
 import re
 import unicodedata
 
-# Table for converting Arabic characters to Persian equivalents
+# Table for converting Arabic characters to Persian equivalents in Persian text context
 _ARABIC_TO_PERSIAN_TABLE: dict[int, int] = str.maketrans(
     {
         "\u064A": "\u06CC",  # ي  → ی
@@ -18,11 +18,13 @@ _ARABIC_TO_PERSIAN_TABLE: dict[int, int] = str.maketrans(
         "\u0660": "\u06F0", "\u0661": "\u06F1", "\u0662": "\u06F2", "\u0663": "\u06F3",
         "\u0664": "\u06F4", "\u0665": "\u06F5", "\u0666": "\u06F6", "\u0667": "\u06F7",
         "\u0668": "\u06F8", "\u0669": "\u06F9",
-        "\u06D5": "\u0647",  # ە → ه
-        "\u0629": "\u0647",  # ة → ه
+        "\u0629": "\u0647",  # ة → ه (Arabic Ta Marbuta in Persian loanword context)
         "\u06C0": "\u0647\u0654",  # ۀ → هٔ
     }
 )
+
+# Safe mapping for multilingual preservation: keeps Arabic/Kurdish characters intact
+_MULTILINGUAL_SAFE_TABLE: dict[int, int] = str.maketrans({})
 
 # Standard QWERTY keys mapped to standard Persian keyboard (with shift & punctuation fixes)
 _QWERTY_TO_PERSIAN_MAP = {
@@ -41,13 +43,13 @@ _ZWNJ = "\u200C"
 
 # Precompiled prefix and suffix patterns for ZWNJ adjustment
 _PREFIX_PATTERNS = [
-    (re.compile(r"\b(می|نمی)\s+(?=\S)"), r"\1" + _ZWNJ),
-    (re.compile(r"\b(بی)\s+(?=\S)"), r"\1" + _ZWNJ),
+    (re.compile(r"\b(می|نمی)[\s\u200C]+(?=\S)"), r"\1" + _ZWNJ),
+    (re.compile(r"\b(بی)[\s\u200C]+(?=\S)"), r"\1" + _ZWNJ),
 ]
 
 _SUFFIX_PATTERNS = [
     (
-        re.compile(r"(?<=\S)\s+(ها|های|هایی|تر|ترین|ای|ام|ات|اش|ایم|اید|اند)\b"),
+        re.compile(r"(?<=\S)[\s\u200C]+(ها|های|هایی|تر|ترین|ای|ام|ات|اش|ایم|اید|اند)\b"),
         _ZWNJ + r"\1",
     ),
 ]
@@ -55,9 +57,11 @@ _SUFFIX_PATTERNS = [
 _ZWNJ_PATTERNS = _PREFIX_PATTERNS + _SUFFIX_PATTERNS
 
 # Precompiled ZWNJ cleanup regular expressions
-_SPACE_ZWNJ_PATTERN = re.compile(r"[\t ]*\u200C[\t ]*")
-_PUNCT_ZWNJ_PATTERN1 = re.compile(r"\u200C+([.,،؛؟?!:()\[\]{}])")
-_PUNCT_ZWNJ_PATTERN2 = re.compile(r"([.,،؛؟?!:()\[\]{}])\u200C+")
+_SPACE_ZWNJ_SPACE_PATTERN = re.compile(r"[\t ]+\u200C+[\t ]+")
+_SPACE_ZWNJ_PATTERN = re.compile(r"[\t ]+\u200C")
+_ZWNJ_SPACE_PATTERN = re.compile(r"\u200C[\t ]+")
+_PUNCT_ZWNJ_PATTERN1 = re.compile(r"\u200C+([.,،؛؟?!:()\[\]{}«»])")
+_PUNCT_ZWNJ_PATTERN2 = re.compile(r"([.,،؛؟?!:()\[\]{}«»])\u200C+")
 _DUPLICATE_ZWNJ_PATTERN = re.compile(r"\u200C{2,}")
 _STRIP_ZWNJ_PATTERN = re.compile(r"^\u200C+|\u200C+$")
 _MULTI_SPACE_PATTERN = re.compile(r" {2,}")
@@ -75,10 +79,10 @@ _ALL_DIGITS_CLASS = r"0-9\u06F0-\u06F9\u0660-\u0669"
 _COLON_SPACE_RE = re.compile(rf"(?<!\bhttp)(?<!\bhttps)(?<!\bftp)(?<![{_ALL_DIGITS_CLASS}]):(?![/{_ALL_DIGITS_CLASS}\s])")
 _PERIOD_SPACE_RE = re.compile(rf"(?<=[\u0600-\u06EF\u06FA-\u06FF])\.(?=[^\s.{_ALL_DIGITS_CLASS}])")
 
-_OPEN_BRACKET_SPACE_RE1 = re.compile(r"(\S)\(")
-_OPEN_BRACKET_SPACE_RE2 = re.compile(r"\)(\S)")
-_OPEN_SQBRACKET_SPACE_RE1 = re.compile(r"(\S)\[")
-_OPEN_SQBRACKET_SPACE_RE2 = re.compile(r"\](\S)")
+_OPEN_BRACKET_SPACE_RE1 = re.compile(r"([^\s«(\[{])\(")
+_OPEN_BRACKET_SPACE_RE2 = re.compile(r"\)([^\s.,;!?؟،؛:)\x5d}»])")
+_OPEN_SQBRACKET_SPACE_RE1 = re.compile(r"([^\s«(\[{])\[")
+_OPEN_SQBRACKET_SPACE_RE2 = re.compile(r"\]([^\s.,;!?؟،؛:)\x5d}»])")
 _OPEN_PAREN_TRIM_RE = re.compile(r"\(\s+")
 _CLOSE_PAREN_SPACE_RE = re.compile(r"\s+\)")
 _OPEN_SQBRACKET_TRIM_RE = re.compile(r"\[\s+")
@@ -87,8 +91,90 @@ _OPEN_BRACE_TRIM_RE = re.compile(r"\{\s+")
 _CLOSE_BRACE_TRIM_RE = re.compile(r"\s+\}")
 _OPEN_GUILLEMET_TRIM_RE = re.compile(r"«\s+")
 _CLOSE_GUILLEMET_TRIM_RE = re.compile(r"\s+»")
-_OPEN_GUILLEMET_SPACE_RE = re.compile(r"(\S)«")
-_CLOSE_GUILLEMET_SPACE_RE = re.compile(r"»(\S)")
+_OPEN_GUILLEMET_SPACE_RE = re.compile(r"([^\s«(\[{])«")
+_CLOSE_GUILLEMET_SPACE_RE = re.compile(r"»([^\s.,;!?؟،؛:)\x5d}»])")
+
+# Technical token protection patterns
+_URL_PATTERN = re.compile(r"(?:https?|ftp)://[^\s<>\x22\x27\x60]+")
+_EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
+_KEY_VAL_PATTERN = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*=[A-Za-z0-9_./+-]+")
+_SEMVER_PATTERN = re.compile(r"\b(?:v\d+(?:\.\d+)+(?:-[A-Za-z0-9.]+)?|\d+(?:\.\d+){2,}(?:-[A-Za-z0-9.]+)?)\b")
+_TECH_ID_PATTERN = re.compile(r"\b[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+\b")
+
+
+def _id_to_letters(n: int) -> str:
+    res: list[str] = []
+    while True:
+        res.append(chr(ord("A") + (n % 26)))
+        n //= 26
+        if n == 0:
+            break
+    return "".join(reversed(res))
+
+
+def _protect_tokens(text: str) -> tuple[str, dict[str, str]]:
+    """Protect URLs, emails, and technical identifiers from spacing and digit transformations."""
+    if not text:
+        return text, {}
+
+    token_map: dict[str, str] = {}
+    counter = 0
+
+    def get_ph(orig: str) -> str:
+        nonlocal counter
+        ph = f"\uE000PRSKT_{_id_to_letters(counter)}\uE001"
+        counter += 1
+        token_map[ph] = orig
+        return ph
+
+    # 1. URLs: preserve full query strings, fragments, paths, ports, percent-encoding
+    def url_repl(m: re.Match[str]) -> str:
+        raw = m.group(0)
+        trailing = ""
+        while raw and raw[-1] in ".,;!?؟،؛:":
+            trailing = raw[-1] + trailing
+            raw = raw[:-1]
+        if raw.endswith(")") and raw.count(")") > raw.count("("):
+            trailing = ")" + trailing
+            raw = raw[:-1]
+        elif raw.endswith("]") and raw.count("]") > raw.count("["):
+            trailing = "]" + trailing
+            raw = raw[:-1]
+        elif raw.endswith("}") and raw.count("}") > raw.count("{"):
+            trailing = "}" + trailing
+            raw = raw[:-1]
+        return get_ph(raw) + trailing
+
+    text = _URL_PATTERN.sub(url_repl, text)
+
+    # 2. Email addresses
+    text = _EMAIL_PATTERN.sub(lambda m: get_ph(m.group(0)), text)
+
+    # 3. Key-value technical tokens (e.g. version=v2.0.1)
+    text = _KEY_VAL_PATTERN.sub(lambda m: get_ph(m.group(0)), text)
+
+    # 4. Technical hyphenated IDs (e.g. ID-2026-0042)
+    def id_repl(m: re.Match[str]) -> str:
+        raw = m.group(0)
+        if any(c.isdigit() for c in raw) and any(c.isalpha() for c in raw):
+            return get_ph(raw)
+        return raw
+
+    text = _TECH_ID_PATTERN.sub(id_repl, text)
+
+    # 5. Semantic versions and multi-dot technical numbers (e.g. v2.0.1, 3.13.3)
+    text = _SEMVER_PATTERN.sub(lambda m: get_ph(m.group(0)), text)
+
+    return text, token_map
+
+
+def _restore_tokens(text: str, token_map: dict[str, str]) -> str:
+    """Restore protected tokens to their pristine original form."""
+    if not text or not token_map:
+        return text
+    for ph, orig in token_map.items():
+        text = text.replace(ph, orig)
+    return text
 
 # Collation weights for Persian alphabetical sorting
 _SORT_NORM_MAP = str.maketrans({
@@ -235,18 +321,25 @@ def correct_keyboard_layout(text: str) -> str:
     return text.translate(_KEYBOARD_TABLE)
 
 
-def standardize_persian(text: str, *, strip_diacritics_opt: bool = False) -> str:
+def standardize_persian(
+    text: str,
+    *,
+    strip_diacritics_opt: bool = False,
+    preserve_arabic: bool = False,
+) -> str:
     """Normalize and standardize Persian text layout, character codes, and spaces.
     
     Applies:
     1. Unicode canonical NFC normalization.
     2. Optional diacritic stripping if requested.
-    3. Arabic-to-Persian letter normalization (ي/ك/ة to ی/ک/ه).
+    3. Arabic-to-Persian letter normalization (ي/ك/ة to ی/ک/ه) in Persian context.
+       If preserve_arabic=True, Arabic-specific characters (ة, ي) are preserved.
+       Kurdish characters such as Kurdish Ae (ە / U+06D5) are always preserved.
     4. ZWNJ insertion for prefixes (می‌/نمی‌/بی‌) and suffixes (‌ها/‌ترین/...).
-    5. Clean-up of space-adjacent ZWNJ (e.g. " \u200c" -> "\u200c").
+    5. Clean-up of space-adjacent ZWNJ without joining independent words.
     6. Stripping of redundant ZWNJ characters adjacent to punctuation marks.
     7. Deduplication of adjacent ZWNJs and removal of leading/trailing ZWNJs.
-    8. Redundant multi-space collapsing and edge trimming.
+    8. Redundant multi-space collapsing and edge trimming (preserving newlines).
     """
     if not text:
         return text
@@ -259,14 +352,21 @@ def standardize_persian(text: str, *, strip_diacritics_opt: bool = False) -> str
         text = strip_diacritics(text)
 
     # 3. Convert Arabic character variants to Persian
-    text = text.translate(_ARABIC_TO_PERSIAN_TABLE)
+    if not preserve_arabic:
+        text = text.translate(_ARABIC_TO_PERSIAN_TABLE)
+    else:
+        text = text.translate(_MULTILINGUAL_SAFE_TABLE)
 
     # 4. Adjust ZWNJs around prefixes and suffixes
     for pattern, replacement in _ZWNJ_PATTERNS:
         text = pattern.sub(replacement, text)
 
-    # 5. Clean up redundant spaces adjacent to ZWNJ
+    # 5. Clean up spaces around ZWNJ:
+    # Multiple spaces on both sides of ZWNJ between independent words -> single regular space
+    text = _SPACE_ZWNJ_SPACE_PATTERN.sub(" ", text)
+    # Single-sided space adjacent to ZWNJ -> ZWNJ (meaningful Persian half-space)
     text = _SPACE_ZWNJ_PATTERN.sub(_ZWNJ, text)
+    text = _ZWNJ_SPACE_PATTERN.sub(_ZWNJ, text)
 
     # 6. Remove redundant ZWNJ adjacent to punctuation
     text = _PUNCT_ZWNJ_PATTERN1.sub(r"\1", text)
@@ -275,13 +375,14 @@ def standardize_persian(text: str, *, strip_diacritics_opt: bool = False) -> str
     # 7. Collapse duplicate ZWNJs into single ZWNJ
     text = _DUPLICATE_ZWNJ_PATTERN.sub(_ZWNJ, text)
 
-    # 8. Strip leading and trailing ZWNJs
-    text = _STRIP_ZWNJ_PATTERN.sub("", text)
+    # 8. Strip leading/trailing ZWNJs per line and collapse spaces, preserving line breaks
+    lines = []
+    for line in text.split("\n"):
+        line = _STRIP_ZWNJ_PATTERN.sub("", line.strip())
+        line = _MULTI_SPACE_PATTERN.sub(" ", line)
+        lines.append(line)
 
-    # 9. Collapse redundant spaces
-    text = _MULTI_SPACE_PATTERN.sub(" ", text).strip()
-
-    return text
+    return "\n".join(lines).strip()
 
 
 def persian_sort_key(s: str) -> tuple[int, ...]:
@@ -320,11 +421,13 @@ def beautify_persian_spacing(text: str) -> str:
     """Optimize and beautify spaces around Persian punctuation and symbols.
     
     Carefully respects URLs, email addresses, decimal numbers (e.g. 3.14, ۱۲.۵),
-    timestamps (e.g. 12:30), file names, and ellipses without breaking them.
+    timestamps (e.g. 12:30), file names, technical identifiers, and ellipses without breaking them.
     """
     if not text:
         return text
-        
+
+    text, token_map = _protect_tokens(text)
+
     text = _PERSIAN_COMMA_RE.sub(r"\1، ", text)
     text = _PERSIAN_SEMICOLON_RE.sub(r"\1؛ ", text)
 
@@ -358,8 +461,11 @@ def beautify_persian_spacing(text: str) -> str:
     text = _OPEN_GUILLEMET_SPACE_RE.sub(r"\1 «", text)
     text = _CLOSE_GUILLEMET_SPACE_RE.sub(r"» \1", text)
 
+    # Re-verify no space before sentence punctuation
+    text = _SPACE_BEFORE_PUNCT_RE.sub(r"\1", text)
+
     text = _MULTI_SPACE_PATTERN.sub(" ", text).strip()
-    return text
+    return _restore_tokens(text, token_map)
 
 
 def extract_mobiles(text: str) -> list[str]:
@@ -518,23 +624,27 @@ def slugify(text: str, separator: str = "-") -> str:
     return slug.strip(separator)
 
 
-def clean_text(text: str) -> str:
+def clean_text(text: str, *, preserve_arabic: bool = False) -> str:
     """
     Thoroughly cleanses Persian text, removing common noises, adjusting spaces,
     correcting ZWNJ layout, converting Arabic letters/numbers, and removing empty lines.
+    Protects URLs, email addresses, and technical tokens from digit conversion and spacing damage.
     """
     if not text:
         return ""
 
     from parsikit.number import english_to_persian
 
-    # 1. Standardize Persian characters & Arabic transformations & NFC
-    text = standardize_persian(text)
+    # 0. Protect URLs, emails, and technical identifiers from corruption
+    text, token_map = _protect_tokens(text)
 
-    # 2. Convert English and Arabic numbers to Persian digits
+    # 1. Standardize Persian characters & Arabic transformations & NFC
+    text = standardize_persian(text, preserve_arabic=preserve_arabic)
+
+    # 2. Convert English and Arabic numbers to Persian digits (outside protected tokens)
     text = english_to_persian(text)
 
-    # 3. Beautify spacing around punctuation (safely preserving URLs/emails/decimals)
+    # 3. Beautify spacing around punctuation
     text = beautify_persian_spacing(text)
 
     # 4. Remove unwanted zero-width/control characters, preserving ZWNJ (u200C)
@@ -549,7 +659,8 @@ def clean_text(text: str) -> str:
         line_cleaned = _MULTI_SPACE_PATTERN.sub(" ", line).strip()
         lines.append(line_cleaned)
 
-    return "\n".join(lines)
+    cleaned = "\n".join(lines)
+    return _restore_tokens(cleaned, token_map)
 
 
 def normalize_whitespace(text: str, keep_paragraphs: bool = True) -> str:

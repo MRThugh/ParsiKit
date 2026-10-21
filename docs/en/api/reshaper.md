@@ -25,11 +25,18 @@ Connects cursive Persian characters into appropriate presentation glyphs and man
 #### Returns:
 - `str`: Shaped Unicode presentation string ready for graphic blitting.
 
+#### Direction & Reversal Semantics:
+- **`reverse=True` (Default)**: Intended for naive graphic rendering environments (such as basic Pygame, OpenCV, Matplotlib, or simple Canvas) that draw characters strictly from left to right. RTL character runs are inverted so they draw correctly from right to left, while embedded LTR runs (Latin words, URLs, emails, dates, and numbers) remain in forward left-to-right reading order.
+- **`reverse=False`**: Intended for engines that already handle BiDi cursor positioning or text flow, but lack font cursive shaping support. Only glyph shaping (Initial, Medial, Final, Isolated) and Lam-Alef ligatures are performed, preserving original logical character order.
+
 #### Supported Features:
-- Complete Persian and Arabic alphabet presentation mapping (including `ۀ`, `ك`, and `ي`).
+- Complete Persian and Arabic alphabet presentation mapping (including `ۀ`, `ك`, `ي`, and Kurdish `ە`).
 - Standard **Lam-Alef ligatures** (`لا`, `لآ`, `لأ`, `لإ`) in isolated and final positions.
 - **Diacritics & Combining Graphemes**: Ignores short vowels during connectivity checks and preserves combining diacritics attached to base letters upon reversal.
-- **BiDi Block & Numeral Preservation**: Preserves Latin words and numbers (both ASCII and Persian/Arabic digits) in standard LTR order without inversion.
+- **BiDi Block & Numeral Preservation**: Preserves Latin words, URLs, emails, dates, and numbers (both ASCII and Persian/Arabic digits) in standard LTR order without inversion.
+
+#### Limitations & Boundary Scope:
+`parsikit.reshaper` is a lightweight, zero-dependency layout helper. It is **not** a complete implementation of the Unicode Bidirectional Algorithm (UAX #9). While it correctly segments sequential RTL and LTR blocks (including embedded Latin phrases, numbers, and URLs), deeply nested bidirectional text (e.g., an Arabic clause embedded within an English phrase inside a Persian sentence with complex punctuation neutrals) requires a specialized full-layout engine such as HarfBuzz with Raqm/FriBidi.
 
 #### Usage Example:
 
@@ -53,7 +60,7 @@ Automatically word-wraps a long paragraph of Persian text and reshapes each line
 #### Parameters:
 - **`text`** (`str`): Paragraph text to wrap and shape.
 - **`max_chars_per_line`** (`int`): Maximum character width per line.
-- **`reverse`** (`bool`, default `True`): Whether to reverse RTL blocks.
+- **`reverse`** (`bool`, default `True`): Whether to reverse RTL blocks for LTR canvas drawing.
 
 #### Returns:
 - `list[str]`: A list of shaped line strings.
@@ -75,3 +82,4 @@ for line in lines:
 
 - **`parsikit.text.standardize_persian`**: Recommended before shaping to unify Arabic characters and fix zero-width non-joiners.
 - **`parsikit.gui.bind_persian_input`**: Integrates live typing assistance for GUI frameworks (Tkinter, CustomTkinter, Qt).
+

@@ -259,6 +259,42 @@ class TestTextProcessing(unittest.TestCase):
         self.assertEqual(extract_national_codes(""), [])
         self.assertEqual(convert_numbers(""), "")
 
+    def test_standardize_persian_preserve_arabic_and_kurdish(self):
+        """Verify Arabic preservation flag and Kurdish Ae preservation."""
+        # Kurdish Ae always preserved
+        self.assertEqual(standardize_persian("لە کوردی"), "لە کوردی")
+
+        # Arabic Ta Marbuta and Arabic Yeh preserved when requested
+        arabic = "هذه لغة عربية جميلة"
+        self.assertEqual(standardize_persian(arabic, preserve_arabic=True), "هذه لغة عربية جميلة")
+        self.assertEqual(clean_text(arabic, preserve_arabic=True), "هذه لغة عربية جميلة")
+
+        # Persian model wrapper also forwards preserve_arabic
+        pt = parsikit.PersianText(arabic)
+        self.assertEqual(str(pt.standardize(preserve_arabic=True)), "هذه لغة عربية جميلة")
+
+    def test_beautify_persian_spacing_query_and_technical_protection(self):
+        """Verify query strings, ports, and technical tokens in beautify_persian_spacing."""
+        text = "آدرس https://example.com/a?x=1&y=2:8080/test و ID-2026-0042 را بررسی کنید."
+        beautified = beautify_persian_spacing(text)
+        self.assertIn("https://example.com/a?x=1&y=2:8080/test", beautified)
+        self.assertNotIn("? x", beautified)
+        self.assertIn("ID-2026-0042", beautified)
+
+    def test_clean_text_technical_tokens_protection(self):
+        """Verify clean_text protects version strings and technical tokens from digit conversion."""
+        text = "در نسخه Python 3.13.3 و version=v2.0.1 با شناسه ID-2026-0042 تعداد 150 کاربر داریم."
+        cleaned = clean_text(text)
+        self.assertIn("Python 3.13.3", cleaned)
+        self.assertIn("version=v2.0.1", cleaned)
+        self.assertIn("ID-2026-0042", cleaned)
+        self.assertIn("۱۵۰ کاربر", cleaned)
+
+    def test_zwnj_space_boundaries_not_joining(self):
+        """Verify space-ZWNJ-space does not unexpectedly join independent words."""
+        self.assertEqual(standardize_persian("الف \u200c ب"), "الف ب")
+        self.assertEqual(standardize_persian("تست \u200C آزمایشی"), "تست آزمایشی")
+
 
 if __name__ == "__main__":
     unittest.main()

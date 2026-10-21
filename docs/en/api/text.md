@@ -6,22 +6,28 @@ High-performance, Unicode-aware Persian text standardization, normalization, and
 
 ## Standardization & Normalization
 
-### `standardize_persian(text: str, *, strip_diacritics_opt: bool = False) -> str`
+### `standardize_persian(text: str, *, strip_diacritics_opt: bool = False, preserve_arabic: bool = False) -> str`
 Normalizes raw Persian and mixed-language text according to standard orthographic rules:
+- **Scope & Multilingual Support**:
+  - By default (`preserve_arabic=False`), standardizes text within a Persian orthographic context, mapping Arabic loanword variants to standard Persian letters:
+    - Arabic Yeh (`ي` / `\u064A` and `ى` / `\u0649`) → Persian Yeh (`ی` / `\u06CC`)
+    - Arabic Kaf (`ك` / `\u0643`) → Persian Keheh (`ک` / `\u06A9`)
+    - Arabic Ta Marbuta (`ة` / `\u0629`) → Persian Heh (`ه` / `\u0647`) in loanwords (e.g. `دایرة المعارف` → `دایره المعارف`)
+    - Arabic digits (`٠١٢٣٤٥٦٧٨٩`) → Persian digits (`۰۱۲۳۴۵۶۷۸۹`)
+    - Heh with Yeh Above (`ۀ` / `\u06C0`) → `هٔ` (`\u0647\u0654`)
+  - When `preserve_arabic=True`, Arabic-specific characters (`ة`, `ي`, `ى`) are strictly preserved, preventing unwanted alteration of Arabic text (e.g. `"هذه لغة عربية جميلة"`).
+  - Kurdish characters such as Kurdish Ae (`ە` / `\u06D5`) are **never** converted to `ه` and remain completely preserved.
+  - English and other Latin-script words remain unmodified.
 - **Unicode Canonical Normalization**: Applies standard Unicode canonical composition (`NFC`), ensuring decomposed sequences (such as decomposed `آ`) match precomposed Persian characters.
-- **Arabic Character Mapping**: Converts standard Arabic glyph variants to standard Persian equivalents:
-  - Arabic Yeh (`ي` / `\u064A` and `ى` / `\u0649`) → Persian Yeh (`ی` / `\u06CC`)
-  - Arabic Kaf (`ك` / `\u0643`) → Persian Keheh (`ک` / `\u06A9`)
-  - Arabic Ta Marbuta (`ة` / `\u0629` and `ە` / `\u06D5`) → Persian Heh (`ه` / `\u0647`)
-  - Arabic digits (`٠١٢٣٤٥٦٧٨٩`) → Persian digits (`۰۱۲۳۴۵۶۷۸۹`)
 - **Zero-Width Non-Joiner (ZWNJ) Engine**:
   - Automatically adjusts half-spaces for standard prefixes (`می‌`, `نمی‌`, `بی‌`) and suffixes (`‌ها`, `‌های`, `‌ترین`, `‌تر`, `‌ای`, etc.).
-  - Cleans up space-adjacent ZWNJ pairs (e.g. ` \u200c` or `\u200c ` → `\u200c`).
-  - Removes redundant ZWNJs adjacent to punctuation marks.
+  - Preserves word boundaries: spaces surrounding ZWNJ between independent words (e.g. `"الف \u200c ب"`) collapse into a standard space (`"الف ب"`), ensuring separate words are not unintentionally conjoined.
+  - Cleans up single-sided space-adjacent ZWNJ (e.g. `"دانش \u200cآموز"` → `"دانش\u200cآموز"`), preserving meaningful Persian half-spaces.
+  - Removes redundant ZWNJs adjacent to punctuation marks (`.`, `،`, `؛`, `؟`, `!`, `:`, `()`, `[]`, `{}`, `«»`).
   - Collapses duplicate consecutive ZWNJs (`\u200C{2,}`) into a single `\u200C`.
   - Trims leading and trailing ZWNJs from text boundaries.
 - **Idempotence**: Strictly satisfies `standardize_persian(standardize_persian(x)) == standardize_persian(x)`.
-- **Whitespace**: Collapses multiple redundant spaces into a single space and trims edge margins.
+- **Whitespace & Line Breaks**: Collapses redundant spaces into a single space and trims edge margins while preserving line breaks and paragraph structure.
 - **Optional Diacritics Removal**: When `strip_diacritics_opt=True`, strips vowel diacritics via `strip_diacritics`.
 
 ### `strip_diacritics(text: str) -> str`
@@ -30,14 +36,15 @@ Removes Persian and Arabic vowel diacritic marks (Fatha, Damma, Kasra, Tanwin, T
 ### `is_persian(text: str) -> bool`
 Returns `True` if the string contains at least one character in the Persian/Arabic Unicode blocks (including Presentation Forms).
 
-### `clean_text(text: str) -> str`
+### `clean_text(text: str, *, preserve_arabic: bool = False) -> str`
 Sanitizes raw or multi-line strings through a comprehensive pipeline:
-1. Standardizes characters and ZWNJ via `standardize_persian`.
-2. Converts digits to Persian numerals via `english_to_persian`.
-3. Beautifies punctuation spacing via `beautify_persian_spacing`.
-4. Strips invisible zero-width and bidirectional control characters (`\u200B`, `\uFEFF`, `\u200E-\u200F`, `\u202A-\u202E`), strictly preserving intentional ZWNJ (`\u200C`).
-5. Collapses redundant blank lines (allowing at most 1 empty line between paragraphs).
-6. Trims leading/trailing spaces per line.
+1. **Token Protection**: Shields URLs, email addresses, key-value configurations, semantic versions, and technical IDs from digit conversions and spacing modifications.
+2. **Standardization**: Normalizes characters and ZWNJ layout via `standardize_persian(..., preserve_arabic=preserve_arabic)`.
+3. **Digit Conversion**: Converts prose ASCII and Arabic numbers to Persian numerals via `english_to_persian`, while strictly keeping technical identifiers and URLs in ASCII.
+4. **Spacing Beautification**: Optimizes punctuation spacing via `beautify_persian_spacing`.
+5. **Control Character Stripping**: Strips invisible zero-width and bidirectional control characters (`\u200B`, `\uFEFF`, `\u200E-\u200F`, `\u202A-\u202E`), strictly preserving intentional ZWNJ (`\u200C`).
+6. **Paragraph Clean-up**: Collapses redundant blank lines (allowing at most 1 empty line between paragraphs) and trims margins per line.
+7. **Token Restoration**: Restores protected URLs, emails, and technical strings to their exact original forms.
 
 ### `normalize_whitespace(text: str, keep_paragraphs: bool = True) -> str`
 Normalizes non-standard Unicode spaces (tabs, non-breaking spaces `\u00A0`, thin spaces, narrow spaces) to standard spaces.
@@ -49,11 +56,15 @@ Optimizes spacing around Persian and Latin punctuation marks with strict content
 - Standardizes Persian commas (`،`) and semicolons (`؛`).
 - Removes redundant spaces before punctuation marks (`.`, `،`, `؛`, `؟`, `!`, `:`, `)`).
 - Inserts a single space after Persian punctuation (`،`, `؛`, `؟`, `!`).
+- Adjusts spacing around parentheses, brackets, and Persian quotation marks (`«»`), ensuring closing brackets followed by sentence punctuation (`.`, `،`) do not gain unwanted spaces.
+- Does NOT alter digits.
 - **Safety Protection**:
-  - **URLs**: Preserves web addresses (e.g. `https://example.com/api`) without inserting spaces after colons or dots.
-  - **Emails**: Preserves email addresses (e.g. `kamrani.exe@gmail.com`) without corrupting usernames or domains.
+  - **URLs**: Preserves web addresses, query strings (`?x=1&y=2`), paths, ports (`:8080`), fragments (`#section`), and percent-encoding (`%20`) without inserting spaces after question marks, colons, or slashes.
+  - **Trailing Sentence Punctuation**: Punctuation following a URL or closing parenthesis is formatted cleanly without being absorbed into the URL or separated by redundant spaces.
+  - **Emails**: Preserves email addresses (e.g. `user.name+tag@example.co.uk`) without corrupting usernames or domains.
   - **Decimal Numbers**: Preserves floating-point numbers in ASCII and Persian scripts (e.g. `3.14`, `۱۲.۵`).
   - **Timestamps**: Preserves clock times (e.g. `12:30`, `۱۴:۴۵`).
+  - **Technical Tokens**: Preserves version strings (e.g. `version=v2.0.1`, `Python 3.13.3`) and technical IDs (e.g. `ID-2026-0042`).
   - **Code & Filenames**: Preserves technical file extensions (e.g. `test.py`, `script.min.js`).
   - **Ellipses**: Preserves consecutive dots (`...`).
 

@@ -186,5 +186,222 @@ class TestTextPhase02Regressions(unittest.TestCase):
         self.assertIn("7730123452", extracted_ncs)
 
 
+class TestTextPhase02_1Regressions(unittest.TestCase):
+    """
+    Focused regression hardening tests for Phase 02.1.
+    Covers URL query string preservation, clean_text technical token preservation,
+    Arabic/Kurdish character separation, ZWNJ whitespace boundaries, and reshaper bidi integrity.
+    """
+
+    def test_regression_url_query_spacing_preserved(self):
+        """
+        Bug: beautify_persian_spacing inserted a space after '?' in URLs with query parameters:
+             'Visit https://example.com/a?x=1&y=2.' became 'Visit https://example.com/a? x=1&y=2.'.
+        Fix: Protect URLs with token placeholders during punctuation spacing passes.
+        """
+        raw = "Visit https://example.com/a?x=1&y=2."
+        result = beautify_persian_spacing(raw)
+        self.assertEqual(result, "Visit https://example.com/a?x=1&y=2.")
+        self.assertNotIn("? x", result)
+
+    def test_regression_url_varieties_preserved(self):
+        """
+        Verify all required URL forms (query strings, fragments, ports, percent-encoding)
+        remain completely intact in both beautify_persian_spacing and clean_text.
+        """
+        urls = [
+            "https://example.com/a?x=1&y=2",
+            "https://example.com/search?q=persian+text&page=2",
+            "https://example.com/path#section",
+            "https://example.com:8443/api/v1?enabled=true",
+            "https://example.com/file%20name.png",
+        ]
+        for url in urls:
+            beautified = beautify_persian_spacing(url)
+            self.assertEqual(beautified, url, f"beautify altered URL: {url}")
+
+            cleaned = clean_text(url)
+            self.assertEqual(cleaned, url, f"clean_text altered URL: {url}")
+            # Ensure ASCII digits inside URLs were NOT converted to Persian digits
+            self.assertFalse(any('\u06F0' <= c <= '\u06F9' for c in cleaned), f"Persian digits found in cleaned URL: {cleaned}")
+
+    def test_regression_email_varieties_preserved(self):
+        """
+        Verify standard and tagged email addresses remain intact without punctuation spacing damage
+        or digit corruption.
+        """
+        emails = [
+            "user@example.com",
+            "user.name+tag@example.co.uk",
+        ]
+        for email in emails:
+            self.assertEqual(beautify_persian_spacing(email), email)
+            self.assertEqual(clean_text(email), email)
+
+    def test_regression_technical_tokens_digits_preserved_in_clean_text(self):
+        """
+        Bug: clean_text converted ASCII digits inside technical strings (versions, IDs) into Persian digits.
+        Fix: Protect technical identifiers and version strings while converting prose numbers.
+        """
+        sample = "سیستم Python 3.13.3 با شناسه ID-2026-0042 و تنظیمات version=v2.0.1 فعال است و 25 روز مهلت دارد."
+        cleaned = clean_text(sample)
+
+        # Technical tokens preserved with ASCII digits
+        self.assertIn("Python 3.13.3", cleaned)
+        self.assertIn("ID-2026-0042", cleaned)
+        self.assertIn("version=v2.0.1", cleaned)
+
+        # Ordinary prose numbers converted to Persian digits
+        self.assertIn("۲۵ روز", cleaned)
+        self.assertNotIn("25 روز", cleaned)
+
+    def test_regression_punctuation_around_urls_and_parens(self):
+        """
+        Verify trailing sentence punctuation after URLs is handled properly and
+        closing parentheses followed by punctuation do not acquire unwanted spaces.
+        """
+        sentence = "لطفاً به آدرس (https://example.com/a?x=1&y=2) مراجعه کنید."
+        beautified = beautify_persian_spacing(sentence)
+        self.assertIn("(https://example.com/a?x=1&y=2)", beautified)
+        self.assertNotIn("? x", beautified)
+
+        # Period immediately following URL
+        url_end = "آدرس وب‌سایت https://example.com/test."
+        self.assertEqual(beautify_persian_spacing(url_end), "آدرس وب‌سایت https://example.com/test.")
+
+        # Persian comma immediately following URL
+        url_comma = "به آدرس https://example.com/a?x=1&y=2، مراجعه فرمایید."
+        self.assertEqual(beautify_persian_spacing(url_comma), "به آدرس https://example.com/a?x=1&y=2، مراجعه فرمایید.")
+
+        # Parenthesis followed by dot: no space before dot!
+        paren_dot = "متن (داخل پرانتز)."
+        self.assertEqual(beautify_persian_spacing(paren_dot), "متن (داخل پرانتز).")
+
+        # Parenthesis followed by Persian comma: no space before comma!
+        paren_comma = "متن (داخل پرانتز)، ادامه متن."
+        self.assertEqual(beautify_persian_spacing(paren_comma), "متن (داخل پرانتز)، ادامه متن.")
+
+    def test_regression_kurdish_text_preservation(self):
+        """
+        Bug: Kurdish Ae ('\u06D5' / 'ە') was previously mapped to Persian Heh ('\u0647'),
+             corrupting Kurdish words like 'لە' into 'له'.
+        Fix: Removed Kurdish Ae from Arabic-to-Persian table.
+        """
+        kurdish_text = "لە کوردی"
+        normalized = standardize_persian(kurdish_text)
+        self.assertEqual(normalized, "لە کوردی")
+        self.assertIn("\u06D5", normalized)
+        self.assertNotIn("له کوردی", normalized)
+
+        more_kurdish = "ئەمە لە کوردیە"
+        self.assertEqual(standardize_persian(more_kurdish), "ئەمە لە کوردیە")
+
+    def test_regression_arabic_text_preservation_option(self):
+        """
+        Bug: Arabic Ta Marbuta ('ة') and Arabic Yeh ('ي') were unconditionally converted to 'ه' and 'ی',
+             corrupting Arabic text like 'هذه لغة عربية جميلة' into 'هذه لغه عربیه جمیله'.
+        Fix: Add preserve_arabic=True option to preserve Arabic-specific orthography.
+        """
+        arabic_text = "هذه لغة عربية جميلة"
+
+        # With preserve_arabic=True: Arabic letters remain intact
+        preserved = standardize_persian(arabic_text, preserve_arabic=True)
+        self.assertEqual(preserved, "هذه لغة عربية جميلة")
+        self.assertIn("ة", preserved)
+        self.assertIn("ي", preserved)
+
+        # clean_text also respects preserve_arabic
+        cleaned_arabic = clean_text(arabic_text, preserve_arabic=True)
+        self.assertEqual(cleaned_arabic, "هذه لغة عربية جميلة")
+
+        # Default Persian context continues standard loanword normalization
+        persian_loanwords = "كتابخانه ي ملي و مركز دايرة المعارف"
+        normalized_persian = standardize_persian(persian_loanwords)
+        self.assertEqual(normalized_persian, "کتابخانه ی ملی و مرکز دایره المعارف")
+
+    def test_regression_zwnj_space_semantics_and_boundaries(self):
+        """
+        Bug: 'الف \\u200c ب' was aggressively collapsed into 'الف\\u200cب' (rendering as 'الفب').
+        Fix: Collapse space+ZWNJ+space between independent words into a single regular space,
+             while preserving prefixes, suffixes, and meaningful Persian half-spaces.
+        """
+        # Independent words with space on both sides of ZWNJ: keep separated with regular space
+        self.assertEqual(standardize_persian("الف \u200c ب"), "الف ب")
+        self.assertEqual(standardize_persian("سلام \u200c دنیا"), "سلام دنیا")
+
+        # Prefixes and suffixes: properly attach with ZWNJ
+        self.assertEqual(standardize_persian("کتاب \u200C ها"), "کتاب\u200Cها")
+        self.assertEqual(standardize_persian("کتاب \u200Cها"), "کتاب\u200Cها")
+        self.assertEqual(standardize_persian("کتاب\u200C ها"), "کتاب\u200Cها")
+        self.assertEqual(standardize_persian("می \u200C روم"), "می\u200Cروم")
+        self.assertEqual(standardize_persian("بی \u200C نهایت"), "بی\u200Cنهایت")
+
+        # Meaningful half-spaces with single-sided space: preserve as ZWNJ
+        self.assertEqual(standardize_persian("دانش \u200cآموز"), "دانش\u200cآموز")
+        self.assertEqual(standardize_persian("دانش\u200c آموز"), "دانش\u200cآموز")
+
+        # Line breaks preserved
+        multiline = "خط اول: کتاب ها\nخط دوم: می رود"
+        self.assertEqual(standardize_persian(multiline), "خط اول: کتاب‌ها\nخط دوم: می‌رود")
+
+        # Idempotence property verified across all samples
+        test_inputs = [
+            "الف \u200c ب",
+            "کتاب \u200C ها",
+            "دانش \u200cآموز",
+            "خط اول: کتاب ها\nخط دوم: می رود",
+            "https://example.com/a?x=1&y=2",
+            "Python 3.13.3",
+        ]
+        for inp in test_inputs:
+            p1 = standardize_persian(inp)
+            p2 = standardize_persian(p1)
+            self.assertEqual(p1, p2, f"Idempotence failed for {inp!r}")
+
+    def test_regression_reshaper_mixed_language_and_technical(self):
+        """
+        Verify reshaper behaves deterministically for Persian, English, mixed-language sentences,
+        numbers, dates, URLs, Kurdish Ae, and combining diacritics.
+        """
+        # 1. Persian only
+        shaped_fa = reshape_for_graphics("سلام")
+        self.assertEqual(shaped_fa, "ﻡﻼﺳ")
+        self.assertEqual(reshape_for_graphics("سلام", reverse=False), "ﺳﻼﻡ")
+
+        # 2. English only (preserved intact)
+        self.assertEqual(reshape_for_graphics("Hello World!"), "Hello World!")
+        self.assertEqual(reshape_for_graphics("Hello World!", reverse=False), "Hello World!")
+
+        # 3. Mixed Persian and English in same sentence
+        mixed = "زبان Python بسیار محبوب است."
+        shaped_mixed = reshape_for_graphics(mixed)
+        self.assertIn("Python", shaped_mixed)
+
+        # 4. Numbers, dates, version numbers
+        date_ver = "تاریخ 2026/10/21 و نسخه 3.13.3 منتشر شد!"
+        shaped_date = reshape_for_graphics(date_ver)
+        self.assertIn("2026/10/21", shaped_date)
+        self.assertIn("3.13.3", shaped_date)
+
+        # 5. Embedded URLs and emails
+        url_text = "آدرس https://example.com/a?x=1&y=2 و ایمیل user@example.com است"
+        shaped_url = reshape_for_graphics(url_text)
+        self.assertIn("https://example.com/a?x=1&y=2", shaped_url)
+        self.assertIn("user@example.com", shaped_url)
+
+        # 6. Kurdish Ae shaped connection
+        kurdish_shaped = reshape_for_graphics("لە", reverse=False)
+        self.assertEqual(kurdish_shaped, "\uFEDF\uFEEA")  # Initial Lam connected to final Heh
+
+        # 7. ZWNJ and combining diacritics
+        with_zwnj = reshape_for_graphics("می\u200cروم", reverse=False)
+        self.assertIn("\u200C", with_zwnj)
+
+        with_diacritic = reshape_for_graphics("بَ")
+        self.assertEqual(with_diacritic[0], '\uFE8F')  # Isolated Ba
+        self.assertEqual(with_diacritic[1], '\u064E')  # Fatha attached
+
+
 if __name__ == "__main__":
     unittest.main()
+

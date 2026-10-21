@@ -53,6 +53,18 @@ class TestReshaperModule(unittest.TestCase):
         self.assertIsInstance(shaped, str)
         self.assertGreater(len(shaped), 0)
 
+    def test_reshape_kurdish_ae(self):
+        """Verify Kurdish Ae connects to preceding letters without getting dropped or isolated."""
+        shaped = reshape_for_graphics("لە", reverse=False)
+        self.assertEqual(shaped, "\uFEDF\uFEEA")
+
+    def test_reshape_mixed_urls_and_versions(self):
+        """Verify embedded URLs and version numbers are preserved in left-to-right reading order."""
+        text = "آدرس https://example.com/a?x=1 و نسخه 3.13"
+        shaped = reshape_for_graphics(text)
+        self.assertIn("https://example.com/a?x=1", shaped)
+        self.assertIn("3.13", shaped)
+
 
 if __name__ == "__main__":
     unittest.main()

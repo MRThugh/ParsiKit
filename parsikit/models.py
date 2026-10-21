@@ -86,9 +86,9 @@ class PersianText(StringLikeMixin, PydanticValidationMixin):
         """Get raw original text."""
         return self._text
 
-    def standardize(self, strip_diacritics_opt: bool = False) -> PersianText:
+    def standardize(self, strip_diacritics_opt: bool = False, preserve_arabic: bool = False) -> PersianText:
         """Normalize and standardize Persian text layout, character codes, and spaces."""
-        return PersianText(standardize_persian(self._text, strip_diacritics_opt=strip_diacritics_opt))
+        return PersianText(standardize_persian(self._text, strip_diacritics_opt=strip_diacritics_opt, preserve_arabic=preserve_arabic))
 
     def beautify(self) -> PersianText:
         """Optimize and beautify spaces around Persian punctuation and symbols."""
