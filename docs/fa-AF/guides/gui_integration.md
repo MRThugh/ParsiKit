@@ -45,20 +45,63 @@ for line in wrapped_lines:
 
 ---
 
-## ۳. مدیریت تایپ زنده در Tkinter / CustomTkinter
+## ۳. مدیریت تایپ زنده در Tkinter و CustomTkinter
 
-اصلاح خودکار ورودی‌های متنی حین تایپ کاربر:
+اصلاح خودکار ورودی‌های متنی حین تایپ کاربر بدون پرش کرسر:
 
 ```python
 import tkinter as tk
 import parsikit
 
 root = tk.Tk()
-entry = tk.Entry(root, font=("Vazirmatn", 14))
+root.title("سامانه‌ی تایپ هوشمند")
+
+entry = tk.Entry(root, font=("Vazirmatn", 14), width=35)
 entry.pack(padx=20, pady=20)
 
-# اتصال رویدادهای کیبورد و اصلاح خودکار حروف
-parsikit.bind_persian_input(entry)
+# اتصال دستیار هوشمند با حفظ موقعیت کرسر و میانبرها
+parsikit.bind_persian_input(
+    entry,
+    input_type="text",
+    digit_style="persian",
+    smart_spacing=True,
+    snippets={"ق.ظ": "قبل از ظهر", "ب.ظ": "بعد از ظهر"},
+    enable_shortcuts=True
+)
 
 root.mainloop()
+```
+
+---
+
+## ۴. یکپارچه‌سازی با PyQt و PySide
+
+اتصال به ویجت‌های Qt (`QLineEdit`, `QTextEdit`):
+
+```python
+from PyQt6.QtWidgets import QApplication, QLineEdit, QVBoxLayout, QWidget
+import parsikit
+
+app = QApplication([])
+window = QWidget()
+layout = QVBoxLayout()
+
+card_input = QLineEdit()
+card_input.setPlaceholderText("شماره کارت بانکی...")
+parsikit.bind_persian_input(card_input, input_type="card")
+
+layout.addWidget(card_input)
+window.setLayout(layout)
+window.show()
+app.exec()
+```
+
+---
+
+## ۵. آزادسازی و قطع اتصال (`unbind_persian_input`)
+
+جهت قطع ارتباط رویدادها هنگام پاکسازی ویجت:
+
+```python
+parsikit.unbind_persian_input(entry)
 ```

@@ -29,8 +29,8 @@
 ### `format_currency_to_words(amount, currency="toman") -> str`
 Навиштани маблағи пулӣ бо калимаҳо ва номи асъор.
 
-### `add_tax_and_toll(amount, tax_rate=None) -> dict`
-Ҳисоби андоз аз арзиши иловашуда (ААИ) ва маблағи ниҳоии пардохт.
+### `add_tax_and_toll(amount: int | str, tax_rate: float | None = None, *, breakdown: bool = False) -> int | dict[str, Any]`
+Ҳисоби андоз аз арзиши иловашуда (ААИ) ва маблағи ниҳоии пардохт (бо интихоби `breakdown=True` барои баргардонидани ҷадвали муфассали андоз ва маблағи аслӣ).
 
 ### `calculate_installments(principal, annual_interest_rate, months) -> dict`
 Ҳисоби пардохтҳои моҳонаи қарз, фоизи умумӣ ва маблағи бозпардохт тибқи формулаи стандартии бонкӣ.

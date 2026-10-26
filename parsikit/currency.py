@@ -87,7 +87,12 @@ def format_currency_to_words(
     return f"{words_part} {label}"
 
 
-def add_tax_and_toll(amount: int | str, tax_rate: float | None = None) -> int:
+def add_tax_and_toll(
+    amount: int | str, 
+    tax_rate: float | None = None,
+    *,
+    breakdown: bool = False,
+) -> int | dict[str, Any]:
     """Calculate total amount including Value Added Tax (VAT). Uses config rate by default."""
     if tax_rate is None:
         tax_rate = config.default_tax_rate
@@ -103,7 +108,18 @@ def add_tax_and_toll(amount: int | str, tax_rate: float | None = None) -> int:
     if val < 0:
         raise ValueError("Amount must be non-negative.")
 
-    return int(val * (1 + tax_rate))
+    total = int(val * (1 + tax_rate))
+    tax = total - val
+
+    if breakdown:
+        return {
+            "total": total,
+            "tax": tax,
+            "rate": tax_rate,
+            "base": val
+        }
+
+    return total
 
 
 def calculate_installments(principal: int | str, annual_interest_rate: float, months: int) -> int:

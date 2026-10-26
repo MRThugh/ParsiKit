@@ -29,8 +29,8 @@
 ### `format_currency_to_words(amount, currency="toman") -> str`
 نوشتن مبلغ پولی به حروف همراه با پسوند واحد پولی.
 
-### `add_tax_and_toll(amount, tax_rate=None) -> dict`
-محاسبه‌ی مالیات بر ارزش افزوده و سنجش مبلغ نهایی فاکتور.
+### `add_tax_and_toll(amount: int | str, tax_rate: float | None = None, *, breakdown: bool = False) -> int | dict[str, Any]`
+محاسبه‌ی مالیات بر ارزش افزوده و سنجش مبلغ نهایی فاکتور (با گزینه‌ی `breakdown=True` برای ارائه‌ی تفکیک‌شده‌ی مالیات، پایه‌ی قیمت و مجموع کل).
 
 ### `calculate_installments(principal, annual_interest_rate, months) -> dict`
 محاسبه‌ی اقساط ماهوار، مفاد کل و مجموع بازپرداخت بر بنیاد فرمول معیاری بانکی.

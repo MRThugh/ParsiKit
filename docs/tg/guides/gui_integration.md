@@ -44,20 +44,63 @@ for line in wrapped_lines:
 
 ---
 
-## 3. Мудирияти навишти мустақим дар Tkinter / CustomTkinter
+## 3. Мудирияти навишти мустақим дар Tkinter ва CustomTkinter
 
-Ислоҳи худкори навишт ҳангоми чоп кардани корбар:
+Ислоҳи худкори навишт ҳангоми чоп кардани корбар бе ҷаҳиши курсор:
 
 ```python
 import tkinter as tk
 import parsikit
 
 root = tk.Tk()
-entry = tk.Entry(root, font=("Vazirmatn", 14))
+root.title("Вуруди ҳушманди форсӣ")
+
+entry = tk.Entry(root, font=("Vazirmatn", 14), width=35)
 entry.pack(padx=20, pady=20)
 
-# Пайваст кардани рӯйдодҳо ва ислоҳи худкори ҳарфҳо
-parsikit.bind_persian_input(entry)
+# Пайваст кардани ёвари навишт бо ҳифзи курсор ва ихтисорот
+parsikit.bind_persian_input(
+    entry,
+    input_type="text",
+    digit_style="persian",
+    smart_spacing=True,
+    snippets={"қ.з": "қабл аз зӯҳр", "б.з": "баъд аз зӯҳр"},
+    enable_shortcuts=True
+)
 
 root.mainloop()
+```
+
+---
+
+## 4. Пайвастшавӣ бо PyQt ва PySide
+
+Истифода бо виҷетҳои Qt (`QLineEdit`, `QTextEdit`):
+
+```python
+from PyQt6.QtWidgets import QApplication, QLineEdit, QVBoxLayout, QWidget
+import parsikit
+
+app = QApplication([])
+window = QWidget()
+layout = QVBoxLayout()
+
+card_input = QLineEdit()
+card_input.setPlaceholderText("Рақами корт...")
+parsikit.bind_persian_input(card_input, input_type="card")
+
+layout.addWidget(card_input)
+window.setLayout(layout)
+window.show()
+app.exec()
+```
+
+---
+
+## 5. Қатъи бехатари пайваст (`unbind_persian_input`)
+
+Барои қатъи амалиёти назорат ҳангоми бастани виҷет:
+
+```python
+parsikit.unbind_persian_input(entry)
 ```

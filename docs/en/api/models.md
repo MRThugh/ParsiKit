@@ -1,6 +1,9 @@
 # Domain Models API (`parsikit.models`)
 
-Object-Oriented Domain Models (Value Objects) that perform instant validation upon creation and offer structured attributes, masked representations, and native Pydantic v2 support.
+Object-Oriented Domain Models (Value Objects) that perform instant validation upon creation and offer structured attributes, masked representations, comparison operators, and native Pydantic v2 support.
+- **Sorting & Comparison**: All models inherit from `StringLikeMixin` with `<, <=, >, >=, ==`, allowing direct sorting (`sorted([card1, card2])`).
+- **Resilient Fallbacks (`strict=False`)**: When constructed with `strict=False`, accessing properties such as `.formatted` or `.masked` on malformed inputs safely falls back without raising unhandled exceptions.
+- **PII Privacy in Exceptions**: Exception messages mask sensitive middle digits (e.g. `'0912***6789'`, `'IR00****'`) to prevent leaking private data into logs.
 
 ---
 

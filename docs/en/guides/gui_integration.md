@@ -45,20 +45,63 @@ wrapped = parsikit.reshape_paragraph_for_graphics(paragraph, max_chars_per_line=
 
 ---
 
-## 3. Real-Time Typing Helper in Tkinter / CustomTkinter
+## 3. Real-Time Typing Helper in Tkinter & CustomTkinter
 
-Automatically normalize Persian text as the user types:
+Automatically normalize Persian text as the user types without cursor jumps:
 
 ```python
 import tkinter as tk
 import parsikit
 
 root = tk.Tk()
-entry = tk.Entry(root, font=("Vazirmatn", 14))
+root.title("Smart Persian Input")
+
+entry = tk.Entry(root, font=("Vazirmatn", 14), width=35)
 entry.pack(padx=20, pady=20)
 
-# Bind automated Persian keyboard conversion & character fixing
-parsikit.bind_persian_input(entry)
+# Bind smart Persian typing with cursor preservation, snippets, and shortcuts
+parsikit.bind_persian_input(
+    entry,
+    input_type="text",
+    digit_style="persian",
+    smart_spacing=True,
+    snippets={"ق.ظ": "قبل از ظهر", "ب.ظ": "بعد از ظهر"},
+    enable_shortcuts=True
+)
 
 root.mainloop()
+```
+
+---
+
+## 4. PyQt & PySide Integration
+
+`bind_persian_input` seamlessly integrates with Qt's `QLineEdit`, `QTextEdit`, and `QPlainTextEdit`:
+
+```python
+from PyQt6.QtWidgets import QApplication, QLineEdit, QVBoxLayout, QWidget
+import parsikit
+
+app = QApplication([])
+window = QWidget()
+layout = QVBoxLayout()
+
+card_input = QLineEdit()
+card_input.setPlaceholderText("Bank card number...")
+parsikit.bind_persian_input(card_input, input_type="card")
+
+layout.addWidget(card_input)
+window.setLayout(layout)
+window.show()
+app.exec()
+```
+
+---
+
+## 5. Clean Detachment (`unbind_persian_input`)
+
+To disconnect live typing handlers when destroying or reusing widgets:
+
+```python
+parsikit.unbind_persian_input(entry)
 ```

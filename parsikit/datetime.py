@@ -18,6 +18,11 @@ _JALALI_MONTH_NAMES = [
 @memoize(maxsize=4096)
 def gregorian_to_jalali(gy: int, gm: int, gd: int) -> tuple[int, int, int]:
     """Convert a Gregorian date (Year, Month, Day) to Jalali (Shamsi) date."""
+    if not (1 <= gm <= 12):
+        raise ValueError(f"Invalid Gregorian month {gm}. Month must be between 1 and 12.")
+    if not (1 <= gd <= 31):
+        raise ValueError(f"Invalid Gregorian day {gd}. Day must be between 1 and 31.")
+
     g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
     if (gy % 4 == 0 and gy % 100 != 0) or (gy % 400 == 0):
         leap = 1
@@ -62,6 +67,11 @@ def gregorian_to_jalali(gy: int, gm: int, gd: int) -> tuple[int, int, int]:
 @memoize(maxsize=4096)
 def jalali_to_gregorian(jy: int, jm: int, jd: int) -> tuple[int, int, int]:
     """Convert a Jalali (Shamsi) date (Year, Month, Day) to Gregorian date."""
+    if not (1 <= jm <= 12):
+        raise ValueError(f"Invalid Jalali month {jm}. Month must be between 1 and 12.")
+    if not (1 <= jd <= 31):
+        raise ValueError(f"Invalid Jalali day {jd}. Day must be between 1 and 31.")
+
     jy2 = jy - 979
     jm2 = jm - 1
     jd2 = jd - 1
@@ -108,12 +118,21 @@ def jalali_to_gregorian(jy: int, jm: int, jd: int) -> tuple[int, int, int]:
     return gy, 12, 31
 
 
-def format_jalali(jy: int, jm: int, jd: int, pattern: str = "YYYY/MM/DD") -> str:
+def format_jalali(
+    jy: int, jm: int, jd: int, 
+    pattern: str = "YYYY/MM/DD", 
+    *, 
+    persian_digits: bool = False
+) -> str:
     """Format a Jalali date into a readable string pattern (e.g., YYYY/MM/DD, YYYY-MM-DD)."""
     y_str = str(jy).zfill(4)
     m_str = str(jm).zfill(2)
     d_str = str(jd).zfill(2)
-    return pattern.replace("YYYY", y_str).replace("MM", m_str).replace("DD", d_str)
+    res = pattern.replace("YYYY", y_str).replace("MM", m_str).replace("DD", d_str)
+    if persian_digits:
+        from parsikit.number import english_to_persian
+        res = english_to_persian(res)
+    return res
 
 
 def get_jalali_month_name(month: int) -> str:

@@ -43,12 +43,12 @@ print(parsikit.format_currency(1500000, "toman", persian_digits=True))
 ### `format_currency_to_words(amount, currency="toman") -> str`
 مبلغ عددی را همراه با نام واحد پول به صورت حروفی کامل توصیف می‌کند.
 
-### `add_tax_and_toll(amount, tax_rate=None) -> dict`
-مبلغ مالیات بر ارزش افزوده و مبلغ نهایی فاکتور را محاسبه می‌کند:
+### `add_tax_and_toll(amount: int | str, tax_rate: float | None = None, *, breakdown: bool = False) -> int | dict[str, Any]`
+مبلغ کل شامل مالیات بر ارزش افزوده را محاسبه می‌کند. در صورت تنظیم `breakdown=True`، یک دیکشنری تفکیک‌شده شامل پایه، مالیات و جمع کل بازمی‌گرداند:
 ```python
-inv = parsikit.add_tax_and_toll(10000000)
+inv = parsikit.add_tax_and_toll(10000000, breakdown=True)
 print(inv)
-# {'original_amount': 10000000, 'tax_rate': 0.1, 'tax_amount': 1000000.0, 'total_amount': 11000000.0}
+# {'total': 11000000, 'tax': 1000000, 'rate': 0.1, 'base': 10000000}
 ```
 
 ### `calculate_installments(principal, annual_interest_rate, months) -> dict`

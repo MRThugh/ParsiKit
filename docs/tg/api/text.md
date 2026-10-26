@@ -29,12 +29,21 @@
 ### `beautify_persian_spacing(text: str) -> str`
 Танзими фосилаҳои дуруст дар атрофи аломатҳои китобатӣ (вергул, нуқтавергул, қавсҳо, нохунакҳо) бо ҳифзи дақиқи URL, email ва рақамҳои даҳӣ.
 
+### `smart_persian_spacing(text: str, preserve_urls: bool = True, preserve_quotes: bool = True) -> str`
+Танзими ҳушманди нимафосилаҳо ва фосилагузорӣ дар пешвандҳо ва пасвандҳои феълӣ ва исмӣ бо ҳифзи пурраи истинодҳои интернетӣ ва иқтибосҳо.
+
 ---
 
 ## Сафҳакалид ва мураттабсозӣ (Sorting)
 
-### `correct_keyboard_layout(text: str) -> str`
-Ислоҳи калимаҳое, ки иштибоҳан бо сафҳакалиди англисӣ навишта шудаанд (масалан табдили `"sghl"` ба `"سلام"`).
+### `correct_keyboard_layout(text: str, to: Literal["persian", "english", "auto"] = "persian", preserve_mixed: bool = False) -> str`
+Ислоҳи дутарафаи калимаҳое, ки бо забони нодурусти сафҳакалид навишта шудаанд:
+- `to="persian"`: табдили тугмаҳои лотинӣ ба ҳуруфи форсӣ (масалан `"sghl"` ба `"سلام"`).
+- `to="english"`: табдили тугмаҳои форсӣ ба муодили QWERTY лотинӣ (масалан `"اثممخ"` ба `"hello"`).
+- `to="auto"`: ташхиси худкори самти табдилдиҳӣ.
+
+### `expand_snippets(text: str, snippets: dict[str, str], word_boundary: bool = True) -> str`
+Ивазкунии фаврии ихтисорот ба ибораҳои пурраи расмӣ (масалан `{"қ.з": "қабл аз зӯҳр"}`).
 
 ### `persian_sort_key(s: str) -> tuple[int, ...]`
 Тавлиди калиди ҷобаҷокунии алифбоӣ тибқи тартиби расмӣ.
@@ -45,6 +54,9 @@
 ---
 
 ## Истихроҷ ва табдил
+
+### `normalize_digits(text: str, to: Literal["persian", "english", "arabic"] = "persian") -> str`
+Якнавохтсозии рақамҳои матн ба яке аз системаҳои `"persian"`, `"english"`, ё `"arabic"`.
 
 ### `words_to_number(text: str) -> int`
 Табдили ададҳои бо калимаҳо навишташуда ба рақамҳои математикӣ (масалан табдили `"سی و دو هزار و پانصد"` ба `32500`).

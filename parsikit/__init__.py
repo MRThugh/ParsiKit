@@ -17,7 +17,8 @@ from parsikit.text import (
     standardize_persian, strip_diacritics, is_persian, correct_keyboard_layout,
     persian_sort_key, persian_sorted, beautify_persian_spacing, extract_mobiles,
     extract_national_codes, words_to_number, slugify, clean_text, normalize_whitespace,
-    convert_numbers, mask_mobile, mask_card, mask_national_code, mask_email # Added mask_* functions
+    convert_numbers, mask_mobile, mask_card, mask_national_code, mask_email,
+    normalize_digits, smart_persian_spacing, expand_snippets
 )
 from parsikit.number import english_to_persian, persian_to_english, number_to_words
 from parsikit.currency import (
@@ -41,7 +42,7 @@ from parsikit.datetime import (
 from parsikit.reshaper import (
     reshape_for_graphics, reshape_paragraph_for_graphics
 )
-from parsikit.gui import bind_persian_input
+from parsikit.gui import bind_persian_input, unbind_persian_input
 
 # Import dev utilities
 from .dev import (
@@ -93,6 +94,9 @@ __all__ = [
     "mask_card",
     "mask_national_code",
     "mask_email",
+    "normalize_digits",
+    "smart_persian_spacing",
+    "expand_snippets",
     
     # number
     "english_to_persian",
@@ -151,6 +155,7 @@ __all__ = [
     
     # gui
     "bind_persian_input",
+    "unbind_persian_input",
 
     # dev utilities
     "pretty_print",

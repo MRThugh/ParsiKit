@@ -39,6 +39,15 @@ _QWERTY_TO_PERSIAN_MAP = {
 }
 _KEYBOARD_TABLE = str.maketrans(_QWERTY_TO_PERSIAN_MAP)
 
+_PERSIAN_TO_QWERTY_MAP = {
+    'ض': 'q', 'ص': 'w', 'ث': 'e', 'ق': 'r', 'ف': 't', 'غ': 'y', 'ع': 'u', 'ه': 'i', 'خ': 'o', 'ح': 'p', 'ج': '[', 'چ': ']',
+    'ش': 'a', 'س': 's', 'ی': 'd', 'ب': 'f', 'ل': 'g', 'ا': 'h', 'ت': 'j', 'ن': 'k', 'م': 'l', 'ک': ';', 'گ': "'",
+    'ظ': 'z', 'ط': 'x', 'ز': 'c', 'ر': 'v', 'ذ': 'b', 'د': 'n', 'پ': 'm', 'و': ',',
+    'ژ': 'C', 'آ': 'H', '؟': '?',
+    'ي': 'd', 'ك': ';',
+}
+_PERSIAN_TO_QWERTY_TABLE = str.maketrans(_PERSIAN_TO_QWERTY_MAP)
+
 _ZWNJ = "\u200C"
 
 # Precompiled prefix and suffix patterns for ZWNJ adjustment
@@ -314,11 +323,210 @@ def is_persian(text: str) -> bool:
     return bool(_PERSIAN_CHAR_PATTERN.search(text))
 
 
-def correct_keyboard_layout(text: str) -> str:
-    """Correct English layout typed text into Persian layout (e.g. 'sghl' -> 'سلام')."""
+def correct_keyboard_layout(
+    text: str,
+    to: Literal["persian", "english", "auto"] = "persian",
+    *,
+    preserve_mixed: bool = False,
+) -> str:
+    """Correct text accidentally typed with the wrong keyboard layout.
+    
+    Supports:
+    - 'persian': Convert English QWERTY keystrokes to Persian (e.g. 'sghl' -> 'سلام').
+                 If text contains no Latin characters or is already Persian, preserves text.
+    - 'english': Convert Persian keystrokes back to English QWERTY (e.g. 'اثممش' -> 'hello').
+    - 'auto': Automatically detect which script was mistyped and convert appropriately.
+              If ambiguous or already valid Persian, preserves the original text.
+    
+    :param text: Input string to convert.
+    :param to: Target layout ('persian', 'english', or 'auto'). Defaults to 'persian'.
+    :param preserve_mixed: When True, preserves URLs and code tokens from layout translation.
+    :return: Layout-corrected string.
+    """
     if not text:
         return text
-    return text.translate(_KEYBOARD_TABLE)
+
+    token_map: dict[str, str] = {}
+    if preserve_mixed:
+        text, token_map = _protect_tokens(text)
+
+    target = to.lower().strip()
+    if target == "auto":
+        en_chars = len(re.findall(r"[a-zA-Z]", text))
+        fa_chars = len(re.findall(r"[\u0600-\u06FF\uFB50-\uFEFF]", text))
+        if en_chars > fa_chars:
+            target = "persian"
+        elif fa_chars > en_chars and fa_chars >= 2:
+            target = "english"
+        else:
+            return _restore_tokens(text, token_map) if preserve_mixed else text
+
+    if target == "persian":
+        if not re.search(r"[a-zA-Z]", text):
+            res = text
+        else:
+            res = text.translate(_KEYBOARD_TABLE)
+    elif target == "english":
+        if not re.search(r"[\u0600-\u06FF\uFB50-\uFEFF]", text):
+            res = text
+        else:
+            res = text.translate(_PERSIAN_TO_QWERTY_TABLE)
+    else:
+        raise ValueError(f"Unknown target layout '{to}'. Choose 'persian', 'english', or 'auto'.")
+
+    return _restore_tokens(res, token_map) if preserve_mixed else res
+
+
+def normalize_digits(
+    text: str,
+    to: Literal["persian", "english", "arabic"] = "persian",
+) -> str:
+    """Normalize ASCII, Persian, and Arabic-Indic digits into a selected digit style.
+    
+    Preserves all non-digit characters, whitespace, and formatting.
+    
+    :param text: Input string containing digits.
+    :param to: Target digit representation style ('persian', 'english', or 'arabic').
+    :return: Text with standardized digits.
+    """
+    if not text:
+        return text
+
+    target = to.lower().strip()
+    if target in ("persian", "fa"):
+        from parsikit.number import english_to_persian
+        return english_to_persian(text)
+    elif target in ("english", "en", "ascii"):
+        from parsikit.number import persian_to_english
+        return persian_to_english(text)
+    elif target in ("arabic", "ar"):
+        to_arabic_table = str.maketrans("0123456789۰۱۲۳۴۵۶۷۸۹", "٠١٢٣٤٥٦٧٨٩٠١٢٣٤٥٦٧٨٩")
+        return text.translate(to_arabic_table)
+    else:
+        raise ValueError(f"Invalid target digit representation '{to}'. Supported styles: 'persian', 'english', 'arabic'.")
+
+
+def smart_persian_spacing(
+    text: str,
+    *,
+    preserve_urls: bool = True,
+    preserve_quotes: bool = True,
+) -> str:
+    """Perform predictable, safe Persian spacing and punctuation correction.
+    
+    Handles:
+    - Collapsing redundant consecutive spaces.
+    - Standardizing spaces around Persian punctuation (، ؛ ؟ ! : .).
+    - Repairing common ZWNJ spacing mistakes in prefixes (می‌/نمی‌/بی‌) and suffixes (‌ها/‌ترین/...).
+    - Deduplicating consecutive ZWNJs and cleaning ZWNJs adjacent to spaces or punctuation.
+    - Correcting spacing around brackets (), [], {}, and quotation marks «».
+    
+    Protects URLs, email addresses, code tokens, and technical identifiers from corruption.
+    
+    :param text: Input string to process.
+    :param preserve_urls: When True, safeguards URLs and emails from modification.
+    :param preserve_quotes: When True, preserves spacing within quotes and guillemets.
+    :return: Spacing-corrected Persian string.
+    """
+    if not text:
+        return text
+
+    token_map: dict[str, str] = {}
+    if preserve_urls:
+        text, token_map = _protect_tokens(text)
+
+    # 1. Clean duplicated ZWNJs
+    text = _DUPLICATE_ZWNJ_PATTERN.sub(_ZWNJ, text)
+
+    # 2. Adjust prefixes and suffixes
+    for pattern, replacement in _ZWNJ_PATTERNS:
+        text = pattern.sub(replacement, text)
+
+    # 3. Clean ZWNJ spaces
+    text = _SPACE_ZWNJ_SPACE_PATTERN.sub(" ", text)
+    text = _SPACE_ZWNJ_PATTERN.sub(_ZWNJ, text)
+    text = _ZWNJ_SPACE_PATTERN.sub(_ZWNJ, text)
+
+    # 4. Remove ZWNJ adjacent to punctuation
+    text = _PUNCT_ZWNJ_PATTERN1.sub(r"\1", text)
+    text = _PUNCT_ZWNJ_PATTERN2.sub(r"\1", text)
+
+    # 5. Punctuation spacing (comma, semicolon, exclamation, question mark)
+    text = _PERSIAN_COMMA_RE.sub(r"\1، ", text)
+    text = _PERSIAN_SEMICOLON_RE.sub(r"\1؛ ", text)
+    text = _SPACE_BEFORE_PUNCT_RE.sub(r"\1", text)
+    text = _PERSIAN_PUNCT_SPACE_RE.sub(r"\1 ", text)
+    text = _EXCLAMATION_SPACE_RE.sub(r"\1 ", text)
+    text = _QUESTION_SPACE_RE.sub(r"\1 ", text)
+    text = _COLON_SPACE_RE.sub(": ", text)
+    text = _PERIOD_SPACE_RE.sub(". ", text)
+
+    # 6. Brackets and quotation marks
+    text = _OPEN_PAREN_TRIM_RE.sub("(", text)
+    text = _CLOSE_PAREN_SPACE_RE.sub(")", text)
+    text = _OPEN_SQBRACKET_TRIM_RE.sub("[", text)
+    text = _CLOSE_SQBRACKET_TRIM_RE.sub("]", text)
+    text = _OPEN_BRACE_TRIM_RE.sub("{", text)
+    text = _CLOSE_BRACE_TRIM_RE.sub("}", text)
+    if preserve_quotes:
+        text = _OPEN_GUILLEMET_TRIM_RE.sub("«", text)
+        text = _CLOSE_GUILLEMET_TRIM_RE.sub("»", text)
+        text = _OPEN_GUILLEMET_SPACE_RE.sub(r"\1 «", text)
+        text = _CLOSE_GUILLEMET_SPACE_RE.sub(r"» \1", text)
+
+    text = _OPEN_BRACKET_SPACE_RE1.sub(r"\1 (", text)
+    text = _OPEN_BRACKET_SPACE_RE2.sub(r") \1", text)
+    text = _OPEN_SQBRACKET_SPACE_RE1.sub(r"\1 [", text)
+    text = _OPEN_SQBRACKET_SPACE_RE2.sub(r"] \1", text)
+
+    # Clean double spaces
+    text = _MULTI_SPACE_PATTERN.sub(" ", text).strip()
+
+    if preserve_urls and token_map:
+        text = _restore_tokens(text, token_map)
+
+    return text
+
+
+def expand_snippets(
+    text: str,
+    snippets: dict[str, str],
+    *,
+    word_boundary: bool = True,
+) -> str:
+    """Expand configured trigger shortcuts into user-defined phrases.
+    
+    Safely preserves URLs, email addresses, code snippets, and unrelated text.
+    
+    :param text: Input string containing snippet triggers.
+    :param snippets: Dictionary mapping trigger strings to expansion phrases (e.g. {'//salam': 'سلام و درود'}).
+    :param word_boundary: When True, ensures triggers match at distinct word/token boundaries
+                          rather than inside arbitrary words.
+    :return: Text with expanded snippets.
+    """
+    if not text or not snippets:
+        return text
+
+    token_map: dict[str, str] = {}
+    text, token_map = _protect_tokens(text)
+
+    # Sort triggers by descending length to prevent partial prefix collisions
+    sorted_triggers = sorted(snippets.keys(), key=len, reverse=True)
+
+    for trigger in sorted_triggers:
+        replacement = snippets[trigger]
+        if not trigger:
+            continue
+
+        if word_boundary and trigger.isalnum():
+            # For pure word triggers, require word boundaries
+            pattern = re.compile(rf"(?<!\S){re.escape(trigger)}(?!\S)")
+            text = pattern.sub(lambda _: replacement, text)
+        else:
+            # For triggers with special prefixes (e.g. //, :, !), replace directly
+            text = text.replace(trigger, replacement)
+
+    return _restore_tokens(text, token_map)
 
 
 def standardize_persian(
@@ -738,6 +946,8 @@ def mask_mobile(phone: str, mask_char: str = "*") -> str:
         return norm[:4] + (mask_char * 3) + norm[7:]
     except ValueError:
         # Fallback if phone structure is unidentifiable
+        if cleaned.startswith("09") and len(cleaned) >= 7:
+            return cleaned[:4] + (mask_char * 3) + cleaned[-3:]
         mid = len(cleaned) // 2
         return cleaned[:max(1, mid - 2)] + (mask_char * 3) + cleaned[min(len(cleaned), mid + 2):]
 

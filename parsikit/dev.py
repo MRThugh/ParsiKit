@@ -28,14 +28,67 @@ COLOR_CYAN = "\033[36m"
 COLOR_GRAY = "\033[90m"
 
 
+import os
+import unicodedata
+
+
 def _supports_color() -> bool:
     """
     Check if the current terminal environment supports ANSI escape sequences.
+    Respects NO_COLOR and FORCE_COLOR standards, detects Windows Terminal,
+    ConEmu, and ANSI-capable platforms.
     """
-    plat = sys.platform
-    supported_platform = plat != "win32" or "ANSICON" in sys.environ
+    if "FORCE_COLOR" in os.environ and os.environ["FORCE_COLOR"] not in ("0", "false", "False"):
+        return True
+    if "NO_COLOR" in os.environ and os.environ["NO_COLOR"]:
+        return False
+
     is_a_tty = hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
-    return bool(supported_platform and is_a_tty)
+    if not is_a_tty:
+        return False
+
+    plat = sys.platform
+    if plat != "win32":
+        return True
+
+    # Windows environment checks
+    if any(k in os.environ for k in ("ANSICON", "WT_SESSION", "ConEmuANSI")):
+        return True
+    term = os.environ.get("TERM", "")
+    if term in ("xterm", "xterm-256color", "vt100") or "color" in term.lower():
+        return True
+
+    # Windows 10+ natively supports ANSI in console
+    try:
+        win_ver = sys.getwindowsversion()  # type: ignore[attr-defined]
+        if win_ver.major >= 10:
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
+def _visual_width(s: str) -> int:
+    """Calculate the monospace display column width of a string.
+    
+    Zero-width characters (ZWNJs, ZWJs, directional marks, and combining diacritics)
+    have width 0. Wide characters and emojis have width 2. Standard glyphs have width 1.
+    """
+    width = 0
+    for char in s:
+        # Zero-width format and combining marks
+        cat = unicodedata.category(char)
+        if cat in ("Mn", "Me", "Cf"):
+            continue
+        if char in ("\u200C", "\u200D", "\u200E", "\u200F", "\u061C", "\uFEFF", "\u200B"):
+            continue
+        # Wide characters and emojis
+        if unicodedata.east_asian_width(char) in ("W", "F"):
+            width += 2
+        else:
+            width += 1
+    return width
 
 
 class PersianFormatter(string.Formatter):
@@ -68,7 +121,10 @@ class PersianFormatter(string.Formatter):
         match = self._SPEC_REGEX.match(format_spec)
         if not match:
             # Fallback to python standard format
-            res = format(value, format_spec)
+            try:
+                res = format(value, format_spec)
+            except Exception:
+                res = str(value)
             if to_persian_digits:
                 res = english_to_persian(res).replace(",", "،")
             return res
@@ -77,15 +133,27 @@ class PersianFormatter(string.Formatter):
         width_str = gd.get("width")
 
         if not width_str:
-            res = format(value, format_spec)
+            try:
+                res = format(value, format_spec)
+            except Exception:
+                res = str(value)
             if to_persian_digits:
                 res = english_to_persian(res).replace(",", "،")
             return res
 
         # Alignments & custom sizes parameters
         width = int(width_str)
-        fill = gd.get("fill") or " "
+        fill = gd.get("fill")
         align = gd.get("align")
+        is_zero_padded = bool(gd.get("zero"))
+
+        if is_zero_padded and not fill:
+            fill = "۰" if to_persian_digits else "0"
+            if not align:
+                align = "="
+
+        if not fill:
+            fill = " "
 
         # Set default python alignments
         if not align:
@@ -95,21 +163,22 @@ class PersianFormatter(string.Formatter):
         clean_spec_parts = []
         if gd.get("sign"): clean_spec_parts.append(gd["sign"])
         if gd.get("alt"): clean_spec_parts.append(gd["alt"])
-        if gd.get("zero"): clean_spec_parts.append(gd["zero"])
         if gd.get("grouping"): clean_spec_parts.append(gd["grouping"])
         if gd.get("precision"): clean_spec_parts.append(f".{gd['precision']}")
         if gd.get("type"): clean_spec_parts.append(gd["type"])
         clean_spec = "".join(clean_spec_parts)
 
         # Base formatting
-        base_str = format(value, clean_spec)
+        try:
+            base_str = format(value, clean_spec)
+        except Exception:
+            base_str = str(value)
 
         if to_persian_digits:
             base_str = english_to_persian(base_str).replace(",", "،")
 
-        # Calculate exact visual width (omitting ZWNJs & Arabic Diacritics)
-        zero_width_chars = re.compile(r"[\u200C\u064B-\u065F\u0670]")
-        visual_len = len(zero_width_chars.sub("", base_str))
+        # Calculate exact visual width
+        visual_len = _visual_width(base_str)
 
         if visual_len >= width:
             return base_str
@@ -124,6 +193,7 @@ class PersianFormatter(string.Formatter):
             right_pad = padding_needed - left_pad
             return (fill * left_pad) + base_str + (fill * right_pad)
         elif align == "=":
+            # Handle sign character preservation when padding
             if base_str and base_str[0] in "+- ":
                 return base_str[0] + (fill * padding_needed) + base_str[1:]
             return (fill * padding_needed) + base_str

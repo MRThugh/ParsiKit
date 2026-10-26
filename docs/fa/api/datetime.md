@@ -7,7 +7,7 @@
 ## ۱. تبدیل تقویم‌ها
 
 ### `gregorian_to_jalali(gy: int, gm: int, gd: int) -> tuple[int, int, int]`
-تاریخ میلادی (سال، ماه، روز) را با دقت بالا به تاریخ هجری شمسی (سال، ماه، روز) تبدیل می‌کند.
+تاریخ میلادی (سال، ماه، روز) را با دقت بالا به تاریخ هجری شمسی (سال، ماه، روز) تبدیل می‌کند. ورودی‌های ماه (۱ تا ۱۲) و روز (۱ تا ۳۱) به طور دقیق اعتبارسنجی شده و در صورت خروج از محدوده، خطای `ValueError` صادر می‌شود.
 
 ```python
 import parsikit
@@ -17,7 +17,7 @@ print(jy, jm, jd)  # (1405, 4, 15)
 ```
 
 ### `jalali_to_gregorian(jy: int, jm: int, jd: int) -> tuple[int, int, int]`
-تاریخ هجری شمسی را به تاریخ میلادی متناظر تبدیل می‌کند.
+تاریخ هجری شمسی را به تاریخ میلادی متناظر تبدیل می‌کند. در صورت مقادیر نامعتبر ماه یا روز خطای `ValueError` ایجاد می‌گردد.
 
 ```python
 gy, gm, gd = parsikit.jalali_to_gregorian(1405, 4, 15)
@@ -40,8 +40,8 @@ print(parsikit.is_jalali_leap(1403))  # True
 ### `get_jalali_month_name(month: int) -> str`
 نام فارسی ماه شمسی را برمی‌گرداند (۱: فروردین، ...، ۱۲: اسفند).
 
-### `format_jalali(jy: int, jm: int, jd: int, pattern: str = "YYYY/MM/DD") -> str`
-تاریخ شمسی را در قالب رشته‌ای با الگوی مورد نظر فرمت می‌کند.
+### `format_jalali(jy: int, jm: int, jd: int, pattern: str = "YYYY/MM/DD", *, persian_digits: bool = False) -> str`
+تاریخ شمسی را در قالب رشته‌ای با الگوی مورد نظر فرمت می‌کند. با فعال‌سازی `persian_digits=True`، ارقام به صورت فارسی درج می‌شوند (مانند `'۱۴۰۵/۰۴/۱۵'`).
 
 ---
 

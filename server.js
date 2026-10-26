@@ -140,7 +140,7 @@ try:
     words = parsikit.number_to_words(num)
     toman_fmt = parsikit.format_currency(num, "toman", persian_digits=True)
     rial_fmt = parsikit.format_currency(parsikit.toman_to_rial(num), "rial", persian_digits=True)
-    vat = parsikit.add_tax_and_toll(num)
+    vat = parsikit.add_tax_and_toll(num, breakdown=True)
     print(json.dumps({
         "words": words,
         "toman": toman_fmt,

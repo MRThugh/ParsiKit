@@ -27,8 +27,8 @@ Formats a numeric amount with thousand separators and currency symbol.
 ### `format_currency_to_words(amount, currency="toman") -> str`
 Expresses an amount in written Persian words with the currency label.
 
-### `add_tax_and_toll(amount, tax_rate=None) -> dict`
-Calculates Value-Added Tax (VAT) and the total price.
+### `add_tax_and_toll(amount: int | str, tax_rate: float | None = None, *, breakdown: bool = False) -> int | dict[str, Any]`
+Calculates total amount including Value-Added Tax (VAT). If `breakdown=True`, returns a detailed breakdown dictionary: `{"base": val, "tax": tax, "rate": tax_rate, "total": total}`. If `breakdown=False`, returns the total integer amount directly.
 
 ### `calculate_installments(principal, annual_interest_rate, months) -> dict`
 Calculates loan amortization schedule according to the Central Bank of Iran formula.

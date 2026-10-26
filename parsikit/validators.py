@@ -211,12 +211,18 @@ def is_valid_national_code(code: str) -> bool:
     if not code:
         return False
 
-    clean = "".join(c for c in str(code).translate(_TO_ENGLISH) if c.isdigit())
-
-    if len(clean) < 10:
-        clean = clean.zfill(10)
-    elif len(clean) > 10:
+    raw_str = str(code).strip().translate(_TO_ENGLISH)
+    # Reject strings containing letters or disallowed symbols
+    if re.search(r"[^\d\s\-]", raw_str):
         return False
+
+    clean = "".join(c for c in raw_str if c.isdigit())
+
+    # Iranian national codes have 8 to 10 digits (at most 2 leading zeros omitted)
+    if len(clean) < 8 or len(clean) > 10:
+        return False
+
+    clean = clean.zfill(10)
 
     if len(set(clean)) == 1:
         return False
@@ -261,7 +267,11 @@ def is_valid_mobile(phone: str) -> bool:
     """Validate Iranian mobile numbers (supports +98, 0098, 98, 0 and bare prefixes)."""
     if not phone:
         return False
-    clean = "".join(c for c in str(phone).translate(_TO_ENGLISH) if c.isdigit() or c == "+")
+    raw_str = str(phone).strip().translate(_TO_ENGLISH)
+    # Reject strings with alphabetic characters or unexpected symbols
+    if re.search(r"[^\d+\s\-()]", raw_str):
+        return False
+    clean = "".join(c for c in raw_str if c.isdigit() or c == "+")
     pattern = re.compile(r"^(?:\+98|0098|98|0)?9\d{9}$")
     return bool(pattern.match(clean))
 
@@ -295,7 +305,10 @@ def is_valid_landline(phone: str) -> bool:
     """Validate Iranian fixed-line (landline) phone numbers (e.g., 02188888888, +982188888888)."""
     if not phone:
         return False
-    clean = "".join(c for c in str(phone).translate(_TO_ENGLISH) if c.isdigit() or c == "+")
+    raw_str = str(phone).strip().translate(_TO_ENGLISH)
+    if re.search(r"[^\d+\s\-()]", raw_str):
+        return False
+    clean = "".join(c for c in raw_str if c.isdigit() or c == "+")
     pattern = re.compile(r"^(?:\+98|0098|98|0)?[1-8]\d{9}$")
     return bool(pattern.match(clean))
 
@@ -338,7 +351,11 @@ def is_valid_card_number(card: str) -> bool:
     """Validate 16-digit bank card numbers using Luhn checksum algorithm."""
     if not card:
         return False
-    clean = "".join(c for c in str(card).translate(_TO_ENGLISH) if c.isdigit())
+    raw_str = str(card).strip().translate(_TO_ENGLISH)
+    # Reject strings with alphabetic or illegal characters
+    if re.search(r"[^\d\s\-]", raw_str):
+        return False
+    clean = "".join(c for c in raw_str if c.isdigit())
     
     if len(clean) != 16:
         return False
@@ -366,7 +383,11 @@ def is_valid_sheba(sheba: str) -> bool:
     if not sheba:
         return False
     
-    clean = "".join(c for c in str(sheba).translate(_TO_ENGLISH).upper() if c.isdigit() or ('A' <= c <= 'Z'))
+    raw_str = str(sheba).strip().translate(_TO_ENGLISH).upper()
+    if re.search(r"[^A-Z0-9\s\-]", raw_str):
+        return False
+
+    clean = "".join(c for c in raw_str if c.isalnum())
 
     if len(clean) == 24 and clean.isdigit():
         clean = "IR" + clean
@@ -426,7 +447,11 @@ def is_valid_corporate_id(code: str) -> bool:
     if not code:
         return False
     
-    clean = "".join(c for c in str(code).translate(_TO_ENGLISH) if c.isdigit())
+    raw_str = str(code).strip().translate(_TO_ENGLISH)
+    if re.search(r"[^\d\s\-]", raw_str):
+        return False
+
+    clean = "".join(c for c in raw_str if c.isdigit())
     
     if len(clean) != 11:
         return False
@@ -513,7 +538,10 @@ def is_valid_postal_code(postal_code: str) -> bool:
     """Validate 10-digit Iranian Postal Code."""
     if not postal_code:
         return False
-    clean = "".join(c for c in str(postal_code).translate(_TO_ENGLISH) if c.isdigit())
+    raw_str = str(postal_code).strip().translate(_TO_ENGLISH)
+    if re.search(r"[^\d\s\-]", raw_str):
+        return False
+    clean = "".join(c for c in raw_str if c.isdigit())
     if len(clean) != 10:
         return False
     first_five = clean[:5]

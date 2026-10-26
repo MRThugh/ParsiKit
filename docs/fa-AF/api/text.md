@@ -29,12 +29,21 @@
 ### `beautify_persian_spacing(text: str) -> str`
 تنظیم فواصل استاندارد در اطراف علائم نگارشی (کامه «،»، نقطه‌ویرگول «؛»، گیومه ««»»، قوسین) با محافظت کامل از آدرس‌های وب، ایمیل‌ها و ارقام اعشاری.
 
+### `smart_persian_spacing(text: str, preserve_urls: bool = True, preserve_quotes: bool = True) -> str`
+تنظیم هوشمندانه‌ی نیم‌فاصله‌ها پیرامون پیشوندها و پسوندهای فعلی و اسمی با محافظت کامل از پیوندهای اینترنتی و نقل‌قول‌ها.
+
 ---
 
 ## چیدمان کیبورد و مرتب‌سازی الفبایی
 
-### `correct_keyboard_layout(text: str) -> str`
-اصلاح کلماتی که بر اثر اشتباه بودن زبان کیبورد با حروف انگلیسی تایپ شده‌اند (مانند تبدیل `"sghl"` به `"سلام"`).
+### `correct_keyboard_layout(text: str, to: Literal["persian", "english", "auto"] = "persian", preserve_mixed: bool = False) -> str`
+اصلاح دوطرفه‌ی کلماتی که با زبان اشتباه کیبورد تایپ شده‌اند:
+- `to="persian"`: تبدیل کلیدهای لاتین به حروف دری/فارسی (مانند `"sghl"` به `"سلام"`).
+- `to="english"`: تبدیل کلیدهای فارسی به معادل لاتین QWERTY (مانند `"اثممخ"` به `"hello"`).
+- `to="auto"`: تشخیص خودکار جهت تبدیل.
+
+### `expand_snippets(text: str, snippets: dict[str, str], word_boundary: bool = True) -> str`
+گسترش خودکار اختصارات متنی به عبارات کامل (مثلاً `{"ق.ظ": "قبل از ظهر"}`).
 
 ### `persian_sort_key(s: str) -> tuple[int, ...]`
 تولید کلید مرتب‌سازی الفبایی بر بنیاد ترتیب استاندارد الفبای فارسی.
@@ -45,6 +54,9 @@
 ---
 
 ## استخراج و تبدیل
+
+### `normalize_digits(text: str, to: Literal["persian", "english", "arabic"] = "persian") -> str`
+یکدست‌سازی ارقام متن به یکی از سیستم‌های عددی `"persian"`، `"english"`، یا `"arabic"`.
 
 ### `words_to_number(text: str) -> int`
 تبدیل اعداد نوشته‌شده به حروف به ارقام عددی ریاضی (مانند تبدیل `"سی و دو هزار و پانصد"` به `32500`).

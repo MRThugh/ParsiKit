@@ -36,7 +36,7 @@ print(report)
 ```
 
 ### `debug_text(text: str) -> None`
-گزارش رنگی خوانا و تشخیصی از ویژگی‌های متن را در ترمینال چاپ می‌کند.
+گزارش رنگی خوانا و تشخیصی از ویژگی‌های متن را در ترمینال چاپ می‌کند. خروجی رنگی از استانداردهای مدرن `NO_COLOR`، `FORCE_COLOR`، ترمینال ویندوز (`WT_SESSION`) و ConEmu تبعیت می‌کند.
 
 ### `validate_batch(items: list, model_class, silent: bool = False) -> dict`
 مجموعه‌ای از داده‌ها را به صورت دسته‌ای ارزیابی کرده و تعداد موارد معتبر و نامعتبر را به همراه خطاها تفکیک می‌کند.
@@ -51,5 +51,20 @@ print(report)
 ### `reshape_paragraph_for_graphics(text: str, max_chars_per_line: int, reverse: bool = True) -> str`
 پاراگراف چندخطی را شکسته و هر سطر را به صورت متصل و آینه‌ای آماده رسم می‌کند.
 
-### `bind_persian_input(widget, input_type: str = "text") -> None`
-یک ویجت ورودی متنی در فریم‌ورک‌های Tkinter یا CustomTkinter را مجهز به دستیار تایپ فارسی خودکار (تبدیل «ي» و «ك» و اصلاح اعداد) می‌نماید.
+### `bind_persian_input(widget, input_type: str = "text", *, digit_style: str = "auto", smart_spacing: bool = False, snippets: dict[str, str] | None = None, enable_shortcuts: bool = True) -> None`
+ویجت‌های ورودی متنی را در فریم‌ورک‌های گرافیکی به دستیار تایپ فارسی زنده مجهز می‌سازد:
+- **فریم‌ورک‌های پشتیبانی‌شده**:
+  - فریم‌ورک Tkinter: ویجت‌های `tk.Entry` و `tk.Text`
+  - فریم‌ورک CustomTkinter: ویجت `ctk.CTkEntry`
+  - فریم‌ورک Qt: ویجت‌های `QLineEdit`، `QTextEdit` و `QPlainTextEdit` در نسخه‌های PyQt5، PyQt6، PySide2 و PySide6
+- **حفظ هوشمند مکان‌نما (Cursor Tracking)**:
+  - با رهگیری موقعیت نسبی محتوا از پرش ناگهانی نشانگر به انتهای متن هنگام درج، حذف یا ویرایش در میانه کلمات جلوگیری می‌کند.
+- **پارامترها**:
+  - `input_type`: نوع ورودی شامل `"text"`، `"national_code"`، `"mobile"`، `"card"`، یا `"sheba"`.
+  - `digit_style`: شیوه تبدیل ارقام (`"auto"`، `"persian"`، `"english"`، یا `"none"`).
+  - `smart_spacing`: فعال‌سازی اصلاح خودکار نیم‌فاصله‌ها حین تایپ (`می‌` و `‌ها`).
+  - `snippets`: دیکشنری جایگزینی میانبرهای متنی پرکاربرد (مثلاً `{"ق.ظ": "قبل از ظهر"}`).
+  - `enable_shortcuts`: فعال‌سازی کلیدهای ترکیبی دستکتاپ مانند `Shift+Space` برای نیم‌فاصله در Tkinter.
+
+### `unbind_persian_input(widget) -> None`
+اتصال رویدادها، شنونده‌ها و سیگنال‌های کمکی تایپ فارسی را بدون ایجاد اختلال در ویجت قطع می‌نماید.

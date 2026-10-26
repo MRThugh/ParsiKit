@@ -68,12 +68,22 @@ Optimizes spacing around Persian and Latin punctuation marks with strict content
   - **Code & Filenames**: Preserves technical file extensions (e.g. `test.py`, `script.min.js`).
   - **Ellipses**: Preserves consecutive dots (`...`).
 
+### `smart_persian_spacing(text: str, preserve_urls: bool = True, preserve_quotes: bool = True) -> str`
+Applies contextual half-space (ZWNJ) normalization and spacing corrections around Persian prefixes (`می‌`, `نمی‌`, `بی‌`), suffixes (`‌ها`, `‌های`, `‌ترین`, `‌تر`, `‌ای`), punctuation marks, and quotation marks, with strict protection for URLs, email addresses, and quoted spans.
+
 ---
 
 ## Keyboard Layout & Collation
 
-### `correct_keyboard_layout(text: str) -> str`
-Translates Persian text accidentally typed while the system keyboard was set to English QWERTY into proper Persian characters (e.g. `"sghl"` → `"سلام"`).
+### `correct_keyboard_layout(text: str, to: Literal["persian", "english", "auto"] = "persian", preserve_mixed: bool = False) -> str`
+Translates text mistyped under the wrong keyboard layout between Persian and English QWERTY:
+- `to="persian"`: Converts English QWERTY keystrokes to Persian (e.g. `"sghl"` → `"سلام"`). Preserves already-correct Persian text.
+- `to="english"`: Converts Persian keystrokes to English QWERTY (e.g. `"اثممخ"` → `"hello"`).
+- `to="auto"`: Detects script dominance and converts to the opposite layout.
+- `preserve_mixed`: When `True`, avoids corrupting mixed alphanumeric codes or identifiers.
+
+### `expand_snippets(text: str, snippets: dict[str, str], word_boundary: bool = True) -> str`
+Replaces shorthand abbreviations and snippets with their expanded forms (e.g. `{"ق.ظ": "قبل از ظهر", "ب.ظ": "بعد از ظهر"}`). Uses regex word boundaries when `word_boundary=True`.
 
 ### `persian_sort_key(s: str) -> tuple[int, ...]`
 Generates a precomputed sorting key tuple respecting the official Persian alphabet collation order (`آابپتثجچحخدذرزژسشصضطظعغفقکگلمنوهی`), normalizing Arabic variants (`أ`, `إ`, `ٱ`, `ؤ`, `ئ`) into base Persian letters, placing ZWNJ before space, and ordering numbers before letters.
@@ -84,6 +94,9 @@ Sorts an iterable of strings using the optimized Persian collation key.
 ---
 
 ## Extraction & Conversion
+
+### `normalize_digits(text: str, to: Literal["persian", "english", "arabic"] = "persian") -> str`
+Converts all digits across Latin, Persian, and Arabic-Indic Unicode blocks to a single uniform numeral system: `"persian"` (`۰-۹`), `"english"` (`0-9`), or `"arabic"` (`٠-٩`).
 
 ### `words_to_number(text: str) -> int`
 High-performance parser converting Persian textual number expressions (e.g. `"سی و دو هزار و پانصد"`) into exact integers (`32500`). Supports negative numbers (`"منفی پنجاه"` → `-50`), compound scale multipliers (e.g. `"هزار میلیارد"` → `1000000000000`), and large magnitudes up to septillions.

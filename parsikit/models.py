@@ -48,6 +48,18 @@ class StringLikeMixin:
             return str(self) == str(other)
         return str(self) == str(other)
 
+    def __lt__(self, other: Any) -> bool:
+        return str(self) < str(other)
+
+    def __le__(self, other: Any) -> bool:
+        return str(self) <= str(other)
+
+    def __gt__(self, other: Any) -> bool:
+        return str(self) > str(other)
+
+    def __ge__(self, other: Any) -> bool:
+        return str(self) >= str(other)
+
     def __hash__(self) -> int:
         return hash(str(self))
 
@@ -153,7 +165,10 @@ class NationalCode(StringLikeMixin, PydanticValidationMixin):
     @property
     def formatted(self) -> str:
         """Standard XXX-XXXXXX-X layout."""
-        return format_national_code(self._clean)
+        try:
+            return format_national_code(self._clean)
+        except ValueError:
+            return self._raw
 
     @property
     def masked(self) -> str:
@@ -192,10 +207,11 @@ class MobileNumber(StringLikeMixin, PydanticValidationMixin):
     def __init__(self, phone: str, strict: bool = True) -> None:
         self._raw = str(phone)
         self._is_valid = is_valid_mobile(self._raw)
-        if strict and not self._is_valid:
-            raise InvalidMobileError(f"The mobile number '{self._raw}' is invalid.")
-            
         self._clean = "".join(c for c in self._raw.translate(_TO_ENGLISH) if c.isdigit())
+        if strict and not self._is_valid:
+            safe_mobile = mask_mobile(self._raw) if len(self._clean) >= 6 else self._raw
+            raise InvalidMobileError(f"The mobile number '{safe_mobile}' is invalid.")
+            
         self._base = self._clean[-10:] if self._is_valid or len(self._clean) >= 10 else self._clean
 
     @property
@@ -331,12 +347,15 @@ class BankCard(StringLikeMixin, PydanticValidationMixin):
     @property
     def formatted(self) -> str:
         """Get 4-chunk formatted card layout."""
-        return format_card_number(self._clean)
+        try:
+            return format_card_number(self._clean)
+        except ValueError:
+            return self._raw
 
     @property
     def masked(self) -> str:
         """Masked 6037-99**-****-4455 layout."""
-        return mask_card(self._clean)
+        return mask_card(self._clean) if self._clean else self._raw
 
     @property
     def bank(self) -> BankDetails | None:
@@ -376,7 +395,8 @@ class Sheba(StringLikeMixin, PydanticValidationMixin):
 
         self._is_valid = is_valid_sheba(self._clean)
         if strict and not self._is_valid:
-            raise InvalidShebaError(f"The Sheba code '{self._raw}' is invalid.")
+            safe_sheba = f"{self._clean[:4]}****{self._clean[-4:]}" if len(self._clean) >= 8 else self._raw
+            raise InvalidShebaError(f"The Sheba code '{safe_sheba}' is invalid.")
 
     @property
     def raw(self) -> str:
@@ -392,7 +412,10 @@ class Sheba(StringLikeMixin, PydanticValidationMixin):
 
     @property
     def formatted(self) -> str:
-        return format_sheba(self._clean, format_type="spaced")
+        try:
+            return format_sheba(self._clean, format_type="spaced")
+        except ValueError:
+            return self._raw
 
     @property
     def bank(self) -> BankDetails | None:
@@ -401,7 +424,10 @@ class Sheba(StringLikeMixin, PydanticValidationMixin):
     @property
     def account_number(self) -> str:
         """Extract the clean embedded bank account number from this Sheba."""
-        return extract_account_number_from_sheba(self._clean)
+        try:
+            return extract_account_number_from_sheba(self._clean)
+        except ValueError:
+            return ""
 
     def to_dict(self) -> dict[str, Any]:
         """Export all Sheba properties into a standardized dictionary."""
