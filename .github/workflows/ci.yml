@@ -56,6 +56,10 @@ jobs:
         python -m pip install --force-reinstall dist/*.whl
         python -c "import parsikit; print('Installed ParsiKit version:', parsikit.__version__)"
 
+    - name: Run four-language documentation integrity validation
+      run: |
+        python scripts/validate_docs.py
+
     - name: Verify internal Markdown documentation links
       run: |
         python -c '

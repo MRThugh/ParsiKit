@@ -12,13 +12,25 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Author](https://img.shields.io/badge/author-Ali%20Kamrani-purple.svg)](https://github.com/MRThugh)
 [![Version](https://img.shields.io/badge/version-3.3.1-blue.svg)](https://github.com/MRThugh/ParsiKit)
-[![Persian Docs](https://img.shields.io/badge/docs-فارسی-green)](docs/fa/index.md)
-[![English Docs](https://img.shields.io/badge/docs-English-blue)](docs/en/index.md)
+[![English README](https://img.shields.io/badge/lang-English-blue)](README.md)
 [![Persian README](https://img.shields.io/badge/lang-فارسی-green)](README.fa.md)
+[![Dari README](https://img.shields.io/badge/lang-دری-emerald)](README.fa-AF.md)
+[![Tajik README](https://img.shields.io/badge/lang-Тоҷикӣ-indigo)](README.tg.md)
 
 **A production-grade, highly performant, and pure Python software infrastructure for Persian text processing, validation, financial calculations, calendar conversions, graphical text reshaping, developer diagnostics, and sensitive data security.**
 
 </div>
+
+---
+
+## 🌐 Language Editions / انتخاب زبان
+- 🇬🇧 **[English Documentation](README.md)** (Current)
+- 🇮🇷 **[Farsi (Iran) Documentation](README.fa.md)**
+- 🇦🇫 **[Dari (Afghanistan) Documentation](README.fa-AF.md)**
+- 🇹🇯 **[Tajik (Tajikistan) Documentation](README.tg.md)**
+
+Official Documentation Website: **[https://mrthugh.github.io/parsikit-website/](https://mrthugh.github.io/parsikit-website/)**  
+Full Documentation Hub: **[docs/README.md](docs/README.md)**
 
 ---
 
